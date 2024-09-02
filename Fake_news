@@ -4,7 +4,8 @@
   "metadata": {
     "colab": {
       "provenance": [],
-      "authorship_tag": "ABX9TyNzd58kR1lN7Wd7auhrEqT/",
+      "gpuType": "T4",
+      "authorship_tag": "ABX9TyNyoRI4JUcNf62Csjn6+o/P",
       "include_colab_link": true
     },
     "kernelspec": {
@@ -13,7 +14,8 @@
     },
     "language_info": {
       "name": "python"
-    }
+    },
+    "accelerator": "GPU"
   },
   "cells": [
     {
@@ -28,61 +30,63 @@
     },
     {
       "cell_type": "code",
-      "execution_count": 2,
+      "execution_count": null,
       "metadata": {
-        "id": "vbUds-B6bBU0"
+        "id": "SzrCsm5Z7rAd"
       },
       "outputs": [],
       "source": [
-        "# импортирую библиотеки\n",
-        "%matplotlib inline\n",
-        "import matplotlib.pyplot as plt\n",
+        "!pip install -q seaborn\n",
+        "import pandas as pd\n",
+        "import numpy as np\n",
+        "import itertools\n",
+        "from sklearn.model_selection import train_test_split\n",
+        "from sklearn.feature_extraction.text import TfidfVectorizer\n",
+        "from sklearn.linear_model import PassiveAggressiveClassifier\n",
+        "from sklearn.metrics import accuracy_score, confusion_matrix\n",
+        "from sklearn import metrics\n",
         "import seaborn as sns\n",
-        "import warnings\n",
-        "import pandas as pd\n",
-        "import numpy as np\n",
-        "import matplotlib.pyplot as plt\n",
-        "import warnings\n",
+        "import tempfile\n",
         "import os\n",
-        "import pandas as pd\n",
-        "import numpy as np\n",
-        "# считываю ДФ\n",
-        "df = pd.read_csv('fake_news.csv', index_col=0)"
+        "import tensorflow as tf\n",
+        "import tensorflow_datasets as tfds\n",
+        "import sklearn.metrics as sk_metrics\n",
+        "import matplotlib as plt"
       ]
     },
     {
       "cell_type": "code",
       "source": [
-        "# вывожу первые три записи ДФ\n",
-        "df.head(3)"
+        "data = pd.read_csv('fake_news.csv')\n",
+        "data.head(3)"
       ],
       "metadata": {
+        "id": "Xohhb2Ox0EWB",
         "colab": {
           "base_uri": "https://localhost:8080/",
           "height": 143
         },
-        "id": "Lj8j2P2odVmw",
-        "outputId": "1aa9fd60-6666-4782-b67f-3642e01647f0"
+        "outputId": "24c8d792-41c6-467d-a98f-cb2f63eb9d29"
       },
-      "execution_count": 3,
+      "execution_count": null,
       "outputs": [
         {
           "output_type": "execute_result",
           "data": {
             "text/plain": [
-              "                                                   title  \\\n",
-              "8476                        You Can Smell Hillary’s Fear   \n",
-              "10294  Watch The Exact Moment Paul Ryan Committed Pol...   \n",
-              "3608         Kerry to go to Paris in gesture of sympathy   \n",
+              "   Unnamed: 0                                              title  \\\n",
+              "0        8476                       You Can Smell Hillary’s Fear   \n",
+              "1       10294  Watch The Exact Moment Paul Ryan Committed Pol...   \n",
+              "2        3608        Kerry to go to Paris in gesture of sympathy   \n",
               "\n",
-              "                                                    text label  \n",
-              "8476   Daniel Greenfield, a Shillman Journalism Fello...  FAKE  \n",
-              "10294  Google Pinterest Digg Linkedin Reddit Stumbleu...  FAKE  \n",
-              "3608   U.S. Secretary of State John F. Kerry said Mon...  REAL  "
+              "                                                text label  \n",
+              "0  Daniel Greenfield, a Shillman Journalism Fello...  FAKE  \n",
+              "1  Google Pinterest Digg Linkedin Reddit Stumbleu...  FAKE  \n",
+              "2  U.S. Secretary of State John F. Kerry said Mon...  REAL  "
             ],
             "text/html": [
               "\n",
-              "  <div id=\"df-2c4c2b64-287f-484e-9b0c-f84f9d4166bf\" class=\"colab-df-container\">\n",
+              "  <div id=\"df-bff45a9e-0a92-4e4c-b490-6c426a3a4f9f\" class=\"colab-df-container\">\n",
               "    <div>\n",
               "<style scoped>\n",
               "    .dataframe tbody tr th:only-of-type {\n",
@@ -101,6 +105,7 @@
               "  <thead>\n",
               "    <tr style=\"text-align: right;\">\n",
               "      <th></th>\n",
+              "      <th>Unnamed: 0</th>\n",
               "      <th>title</th>\n",
               "      <th>text</th>\n",
               "      <th>label</th>\n",
@@ -108,19 +113,22 @@
               "  </thead>\n",
               "  <tbody>\n",
               "    <tr>\n",
-              "      <th>8476</th>\n",
+              "      <th>0</th>\n",
+              "      <td>8476</td>\n",
               "      <td>You Can Smell Hillary’s Fear</td>\n",
               "      <td>Daniel Greenfield, a Shillman Journalism Fello...</td>\n",
               "      <td>FAKE</td>\n",
               "    </tr>\n",
               "    <tr>\n",
-              "      <th>10294</th>\n",
+              "      <th>1</th>\n",
+              "      <td>10294</td>\n",
               "      <td>Watch The Exact Moment Paul Ryan Committed Pol...</td>\n",
               "      <td>Google Pinterest Digg Linkedin Reddit Stumbleu...</td>\n",
               "      <td>FAKE</td>\n",
               "    </tr>\n",
               "    <tr>\n",
-              "      <th>3608</th>\n",
+              "      <th>2</th>\n",
+              "      <td>3608</td>\n",
               "      <td>Kerry to go to Paris in gesture of sympathy</td>\n",
               "      <td>U.S. Secretary of State John F. Kerry said Mon...</td>\n",
               "      <td>REAL</td>\n",
@@ -131,7 +139,7 @@
               "    <div class=\"colab-df-buttons\">\n",
               "\n",
               "  <div class=\"colab-df-container\">\n",
-              "    <button class=\"colab-df-convert\" onclick=\"convertToInteractive('df-2c4c2b64-287f-484e-9b0c-f84f9d4166bf')\"\n",
+              "    <button class=\"colab-df-convert\" onclick=\"convertToInteractive('df-bff45a9e-0a92-4e4c-b490-6c426a3a4f9f')\"\n",
               "            title=\"Convert this dataframe to an interactive table.\"\n",
               "            style=\"display:none;\">\n",
               "\n",
@@ -183,12 +191,12 @@
               "\n",
               "    <script>\n",
               "      const buttonEl =\n",
-              "        document.querySelector('#df-2c4c2b64-287f-484e-9b0c-f84f9d4166bf button.colab-df-convert');\n",
+              "        document.querySelector('#df-bff45a9e-0a92-4e4c-b490-6c426a3a4f9f button.colab-df-convert');\n",
               "      buttonEl.style.display =\n",
               "        google.colab.kernel.accessAllowed ? 'block' : 'none';\n",
               "\n",
               "      async function convertToInteractive(key) {\n",
-              "        const element = document.querySelector('#df-2c4c2b64-287f-484e-9b0c-f84f9d4166bf');\n",
+              "        const element = document.querySelector('#df-bff45a9e-0a92-4e4c-b490-6c426a3a4f9f');\n",
               "        const dataTable =\n",
               "          await google.colab.kernel.invokeFunction('convertToInteractive',\n",
               "                                                    [key], {});\n",
@@ -208,8 +216,8 @@
               "  </div>\n",
               "\n",
               "\n",
-              "<div id=\"df-7c763a32-7a08-4575-9f87-80726d944843\">\n",
-              "  <button class=\"colab-df-quickchart\" onclick=\"quickchart('df-7c763a32-7a08-4575-9f87-80726d944843')\"\n",
+              "<div id=\"df-ceff07ee-600f-4430-b621-813e28574e66\">\n",
+              "  <button class=\"colab-df-quickchart\" onclick=\"quickchart('df-ceff07ee-600f-4430-b621-813e28574e66')\"\n",
               "            title=\"Suggest charts\"\n",
               "            style=\"display:none;\">\n",
               "\n",
@@ -328,7 +336,7 @@
               "    }\n",
               "    (() => {\n",
               "      let quickchartButtonEl =\n",
-              "        document.querySelector('#df-7c763a32-7a08-4575-9f87-80726d944843 button');\n",
+              "        document.querySelector('#df-ceff07ee-600f-4430-b621-813e28574e66 button');\n",
               "      quickchartButtonEl.style.display =\n",
               "        google.colab.kernel.accessAllowed ? 'block' : 'none';\n",
               "    })();\n",
@@ -339,50 +347,22 @@
             ],
             "application/vnd.google.colaboratory.intrinsic+json": {
               "type": "dataframe",
-              "variable_name": "df",
-              "summary": "{\n  \"name\": \"df\",\n  \"rows\": 6335,\n  \"fields\": [\n    {\n      \"column\": \"title\",\n      \"properties\": {\n        \"dtype\": \"string\",\n        \"num_unique_values\": 6256,\n        \"samples\": [\n          \"Elizabeth Warren's speech attacking Donald Trump made a bigger argument about Republicans\",\n          \"Assange: Clinton And ISIS Are Funded By Same People, \\u201cTrump Not Permitted To Win\\u201d\",\n          \"Reporters Stunned to Learn Trump Fans Lining Up 12 Hours Before Rally Starts\"\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"text\",\n      \"properties\": {\n        \"dtype\": \"string\",\n        \"num_unique_values\": 6060,\n        \"samples\": [\n          \"Republicans taking control of Congress this coming week will try to overcome their reputation as a divided party hobbled by infighting by working to reshape policy in ways that Americans will feel in corporate boardrooms, on factory floors and at the gas pump.\\n\\nIncoming committee chairmen are preparing fresh oversight of federal agencies while rank-and-file members will be encouraged to use a new budget plan and government spending bills to chip away at President Obama\\u2019s environmental regulations, health-care reform and outreach to Cuba and Iran.\\n\\nAfter years of sparring with the White House, Republicans are eager to demonstrate productivity and some level of bipartisan \\u00adcooperation with Obama and the Democrats. Public disgust with Washington gridlock remains high, and with the 2016 presidential campaign beginning in earnest, broader voter interest \\u2014 especially among independents and Democrats \\u2014 could put recent GOP gains at risk in less than two years.\\n\\n\\u201cOn the things where we agree, the goal will be to make a law, not just put something on [Obama\\u2019s] desk,\\u201d incoming Senate Majority Leader Mitch McConnell (R-Ky.) said in an interview, adding later: \\u201cI want to make it clear: Desire for a signature is not going to dictate everything that we do.\\u201d\\n\\nSecuring final passage of bills will require McConnell and House Speaker John A. Boehner (R-Ohio) to compromise with Democrats while holding together their own ranks, which have clashed repeatedly over issues such as spending and immigration. Many GOP leaders hope that their differences can be set aside in favor of legislative wins.\\n\\nThe House and Senate formally reconvene Tuesday. New members will be sworn in and top leaders and committee chairmen formally installed on a day steeped in tradition and ceremony.\\n\\nBoehner and McConnell will be backed by larger GOP majorities: 246 Republicans in the House \\u2014 the party\\u2019s largest majority since just after World War II \\u2014 and 54 GOP senators, an impressive gain but short of the 60 votes required to overcome most procedural hurdles that Democrats will have at their disposal.\\n\\nIn the Senate, the rebranding effort will begin with energy policy.\\n\\nMcConnell plans to start his tenure as Senate majority leader with a \\u201cfull-throated\\u201d debate on national energy policy, ranging from a new oil pipeline to additional oil exploration. He has also promised consideration of liberal alternatives.\\n\\nMcConnell wants to use the controversial proposal to authorize construction of the Keystone XL pipeline as the gen\\u00adesis for a free-wheeling Senate debate about the United States\\u2019 energy future, in which both sides will have the opportunity to offer and debate more expansive energy issues than the narrow pipeline proposal.\\n\\n\\u201cWe can treat this like a serious and significant energy debate,\\u201d McConnell said in an interview before Christmas in his Capitol office.\\n\\nObama has resisted GOP efforts to authorize the pipeline, but dozens of moderate congressional Democrats support the bill and a broader energy debate.\\n\\nOther Democrats are skeptical of McConnell\\u2019s plans.\\n\\n\\u201cThe $64,000 question as to whether the Congress can get anything done is which way the Republican leadership goes,\\u201d Sen. Charles E. Schumer (D-N.Y.) said in an interview Saturday. \\u201cIf they let the tea party pull them to the right into the path of negativity and obstruction, we\\u2019ll get nothing done.\\u201d\\n\\nSen. John Hoeven (R-N.D.), a lead author of the Keystone bill, said that Republicans plan to consider proposals allowing the export of liquefied natural gas; to give state governments greater power to oversee hydraulic fracturing; and to restrict the federal government\\u2019s role in the construction of cross-border gas pipelines.\\n\\n\\u201cI don\\u2019t think we have an energy bill that doesn\\u2019t have a Democratic co-sponsor on it,\\u201d he said. \\u201cBecause at the end of the day you\\u2019ve got to get at least 60 votes\\u201d to clear procedural hurdles.\\n\\nThe open process is part of McConnell\\u2019s effort to live up to his pledge to restore the Senate\\u2019s grand tradition of free and full debate, while also advancing conservative causes. A skilled practitioner in the use of the Senate\\u2019s arcane procedural rules to move or block legislation, McConnell has pledged to use those rules to score conservative wins. He has been coaching GOP senators that their most likely path to wins will come on the annual spending bills for the federal government \\u2014 which Republicans have routinely opposed on the grounds that they spend too much taxpayer money.\\n\\nOther party leaders echo those sentiments. \\u201cI think a majority [of Republicans] recognize that we have to govern responsibly,\\u201d said Sen. John McCain (R-Ariz.), who will become chairman of the Armed Services Committee. \\u201cWe have to show that we can be a productive party, and that, I think, will have a direct effect on whether we\\u2019re able to elect a Republican as president in 2016.\\u201d\\n\\nBut now, with control of the House and Senate, Republicans have more leeway to attach policy riders to spending bills that will restrict federal agencies in their oversight of environmental, labor and other regulations. These still may draw presidential vetoes, but McConnell believes that Republicans will have leverage to get some restrictions included, just as the mammoth spending measure approved last month included language sought by Wall Street firms making risky trades.\\n\\nIn the House, most of the early weeks will seem like a do-over of the past two years \\u2014 except that many of the bills passed will get swifter Senate consideration.\\n\\nUp first is a veterans employment bill that passed last year with bipartisan support, according to senior leadership aides. There is also a bill to loosen work requirements set by the Affordable Care Act and a similar bill to authorize the Keystone pipeline.\\n\\nThe second week of January will be devoted to a new spending plan for the Department of Homeland Security. The spending bill funds DHS only until the end of February, a move designed to give Republicans more time to craft a legislative response to Obama\\u2019s decision to change immigration policy through executive actions. But no specific proposals have emerged, the aides said.\\n\\nThen there are the investigations into alleged wrongdoing at agencies including the Internal Revenue Service, the Justice Department and the Environmental Protection Agency.\\n\\n\\u201cThere are issues that haven\\u2019t been resolved,\\u201d said Rep. Jason Chaffetz (R-Utah), the new chairman of the House Oversight and Government Reform Committee.\\n\\nHe is launching subcommittees to closely track Obama\\u2019s energy and environmental policies and created \\u201cadministrative rules,\\u201d a panel that will \\u201ctry to figure out what the administration is doing next with its rule-making authority. We\\u2019re going to jump on those as fast as we possibly can,\\u201d he said.\\n\\nBefore the work begins, Boehner is expected to face another leadership challenge. After he survived a close call two years ago, conservative blogs and radio shows are actively supporting another effort to unseat him.\\n\\nPresuming that the 434 currently seated House members show up to vote Tuesday and that all Democrats vote against him, at least 28 of the 246 Republicans also would need to vote against Boehner to deny him the gavel. (The 435th House seat is held by Rep. Michael G. Grimm (R-N.Y.), who plans to resign Monday after recently pleading guilty to tax evasion charges.)\\n\\nRep. Walter B. Jones (R-N.C.), who opposed Boehner two years ago, said in a recent radio interview that he\\u2019ll do it again, adding that at least 16 to 18 Republican members might vote against the speaker. Among them is Rep. Jim Bridenstine (R-Okla.), who said Friday that he will vote against the speaker because the spending bill passed last month didn\\u2019t fully strip DHS of its funding.\\n\\nRep. Tom Cole (R-Okla.), a Boehner ally, said in an interview that \\u201cI expect a few scattered \\u2018no\\u2019 votes. But because Boehner has been strengthened by the gains in the election, the speaker election should mostly be an uneventful coronation.\\u201d\\n\\nThe opening weeks of the new Congress are also expected to include the confirmation of Ashton Carter, Obama\\u2019s pick to lead the Pentagon, and Loretta Lynch to be the next attorney general. Concerns with Iran are also expected to be an early focus. The Obama administration persuaded Senate Democrats last year to hold off debating a bipartisan proposal authorizing stronger sanctions against the Iranian regime.\\n\\nBut Sen. Bob Corker (R-Tenn.), the incoming chairman of the Foreign Relations Committee, said, \\u201cMy guess is fairly early on in some form or fashion the Senate\\u2019s going to want to weigh in on Iran.\\u201d\\n\\nCorker also plans to launch \\u201ca rigorous hearing process\\u201d on Obama\\u2019s decision to restore diplomatic relations with Cuba. Republicans have threatened to block funding for a new embassy in Havana and confirmation of a new ambassador to Cuba. But Obama could veto spending bills that include such restrictions, sparking a showdown over whether the GOP is willing to shutter parts of the government over a new Cuba policy.\\n\\nIn 2016, Republicans will be defending at least 24 Senate seats and about a dozen first-term House members from swing districts around the country. Party leaders have a political imperative to govern and avoid short-term fights with Obama.\\n\\n\\u201cWe will see if there is an opportunity for a fourth quarter for President Obama that actually moves the country in the direction we\\u2019d like to go,\\u201d said Sen. Roger Wicker (R-Miss.), who also will be responsible for helping reelect GOP senators in 2016.\\n\\n\\u201cReagan did it a generation ago working with Democrats. Clinton did it almost two decades ago with welfare reform and deficit reduction,\\u201d he said. \\u201cSo it can be done \\u2014 if the president is disposed to move in that direction.\\u201d\",\n          \"Reps. Kevin McCarthy, R-California, Jason Chaffetz, R-Utah, and Daniel Webster, R-Florida, are the three candidates vying for the post, and the winner becomes the favorite to become second in line to succeed the President of the United States.\\n\\nBut Thursday's vote inside the House GOP conference is just the first step. The candidate who gets the Republican party's internal nod still has to be approved by the full House of Representatives on October 29. And that's where things can get tricky.\\n\\nIf the Republican nominee can't garner 218 votes on the House floor, then Boehner will remain the speaker. And the potential for multiple rounds of votes on the House floor could open up the election to other candidates beyond the three that are in the race now. It would also prolong the deeply divisive and public process for House Republicans, who are hoping to chart a new path forward and prove they can make the dysfunctional Capitol work.\\n\\nThe three candidates will make their pitch to GOP colleagues at a \\\"candidate forum\\\" on Thursday morning in a conference room in the basement of the Capitol. Each gets three minutes to make a speech before answering questions from members. At noon, the 247 members of the House Republican conference gather in the ornate Ways and Means Committee room to vote. Under the House GOP conference rules, the three candidates are not allowed to make their own speeches. Instead each can designate one supporter to make a three-minute address nominating them for the post. Then up to two additional supporters can speak for another minute each on the candidate's behalf. To win the GOP nomination, a candidate needs a simple majority of all House Republicans -- or 125 votes. (That number could change if any House Republicans are absent or opts not to vote in the election.) Boehner plans to vote for McCarthy before heading to New York to tape an appearance on \\\"The Tonight Show,\\\" according to a spokesman. The delegate from American Samoa, Amata Radewagen, who doesn't get a vote on the House floor, does get to cast a vote for speaker inside the conference meeting. RELATED: John Boehner to appear on 'The Tonight Show' Three members serve as \\\"tally clerks\\\" and collect the ballots and count how many votes each candidate receives. Once all the ballots are counted, a representative of the conference will announce the results, along with the vote totals. If no candidate gets a majority of the conference on the first vote, a second ballot circulates with the names of the top two vote-getters, and a winner is announced after those ballots are counted. The new speaker can't take the gavel from Boehner until the full House of Representatives votes. Unlike the private contest on Thursday, the floor vote is covered live by C-SPAN's television cameras inside the House chamber. Each member of Congress is called on in alphabetical order to stand and announce their choice for speaker. The winner must win the votes of a majority -- 218, if everyone in the House is present -- in order to win. The vast majority of House Democrats are expected for to vote for former Speaker and current Minority Leader Nancy Pelosi. House Republican conference rules require that GOP members support their party's nominee on the floor, but many conservatives have ignored that rule in recent elections. That's where any drama will occur. If the GOP nominee fails to get a majority, the contest on the House floor could go to multiple ballots. Boehner will remain the speaker until a majority of the House votes to elect a new candidate. The last time it took more than one ballot to elect a speaker was in 1923 when it took nine ballots over the course of three days. And you don't need to be in the House to get the job. The Constitution does not require that the speaker be someone currently serving in Congress, but all who have been elected to the post have been House members. Former Secretary of State Colin Powell, Sen. Rand Paul and Sen. Jeff Sessions received votes in the January 2015 election . And two years earlier, David Walker, the former head of the General Accounting Office, received one vote\",\n          \"Over the last six years, the Obama administration has been trying to address global warming\\u00a0with a flurry of rules aimed at reducing US carbon-dioxide emissions. First there were stricter fuel-economy standards for cars and trucks. More recently, the EPA\\u00a0proposed sweeping carbon regulations for coal-fired power plants (known as the \\\"Clean Power Plan\\\").\\n\\nThe overarching goal was to cut US greenhouse-gas emissions 17 percent below 2005 levels by 2020. That, the administration believed, would help advance global climate talks.\\n\\nBut all of Obama's moves so far\\u00a0have been insufficient to get to that 17 percent cut by 2020. As recent analyses from the Rhodium Group and the Clean Air Task Force\\u00a0have argued, the US also needs to reduce methane emissions dramatically to get there:\\n\\nCarbon-dioxide is the biggest greenhouse gas responsible for global warming. But it's not the only one. There's also\\u00a0methane.\\u00a0The US burns a lot of methane \\u2014 known as \\\"natural gas\\\" \\u2014 for energy. But when methane leaks out of oil and gas wells or pipelines and into the atmosphere, it acts as a potent greenhouse gas. (The White House says it's 25 times as effective at trapping heat as carbon dioxide. Other scientists say 34 times.)\\n\\nIn 2012, the EPA estimated that methane accounted for roughly\\u00a08.7 percent of US greenhouse-gas emissions (though this may be an\\u00a0underestimate). But experts have warned that methane leaks could be poised to grow in the coming years.\\n\\nThanks to the\\u00a0fracking boom, US energy companies have been extracting more and more natural gas from shale formations. On one level, that's good news for climate change: utilities are now burning more natural gas for electricity instead of coal, which means lower carbon-dioxide emissions from power plants.\\n\\nThe problem is that all this new drilling increases the risk of methane leaking into the air \\u2014 and those leaks\\u00a0are undermining the climate benefits of the gas boom.\\n\\nIn theory, it should be doable to plug these methane emissions,\\u00a0which can come from leaky pipelines or faulty drilling operations. Many companies already\\u00a0use infrared cameras to detect leaks and plug them. And they have financial incentives to do so \\u2014 after all, these companies would rather capture that methane and sell it for money than just have it float off into the air.\\n\\nMany oil and gas companies are already taking steps to detect and plug leaks\\n\\nStill, the White House wants to make sure these leaks really get plugged. So, on Wednesday, it\\u00a0announced a goal of cutting methane emissions from oil and gas operations 45 percent below 2012 levels by 2025.\\n\\nThis would be done through a combination of guidelines for voluntary actions by the industry and a hodgepodge of new regulations\\u00a0crafted by the EPA and other agencies. Some rules would focus on methane leaks from new oil and gas wells. Others would focus on pipelines used to transport the natural gas. The Interior Department is updating standards for drilling on public lands.\\n\\nThe White House noted that the oil and gas industry has already managed to cut methane emissions 16 percent since 1990 through voluntary measures. \\\"Nevertheless,\\\" it added, \\\"emissions from the oil and gas sector are projected to rise more than 25 percent by 2025 without additional steps to lower them.\\\"\\n\\nSome environmental groups said the White House's plan didn't go far enough. For example, the EPA is currently only working on rules to reduce emissions at new oil and gas wells \\u2014 and only much later will they work on rules for\\u00a0existing wells, which are by far the biggest source of emissions.\\n\\n\\\"While setting methane standards for the first time is an important step, failing to immediately regulate existing oil and gas equipment nationwide misses 90% of the methane pollution from the industry,\\\" Conrad Schneider of the Clean Air Task Force said in a statement.\\n\\nJayni Hein, policy director at the Institute for Policy Integrity at NYU School of Law, agreed: \\\"EPA's steps announced today would trim the sector's methane releases by about a third. We can and should go farther by regulating existing oil and natural gas sources.\\\"\\n\\nBy contrast, many oil and gas companies don't want new regulations at all \\u2014 they argue that the industry is already curbing methane leaks as is.\\u00a0\\\"Emissions will continue to fall as operators innovate and find new ways to capture and deliver more methane to consumers,\\\" said Jack Gerard, head of the American Petroleum Institute, in a statement. \\\"Existing EPA and state regulations are working. Another layer of burdensome requirements could actually slow down industry progress to reduce methane emissions.\\\"\\n\\nMeanwhile, it's worth noting that there are other sources of methane besides oil and gas. In 2012,\\u00a0according to the EPA, roughly 30 percent of methane in the United States came from natural-gas and petroleum operations (though, again, that may be an undercount).\\n\\nObama is relying on voluntary measures for methane in agriculture\\n\\n-- By contrast,\\u00a036 percent of US.methane emissions came from agriculture. The beef and dairy industry is a major contributor here: when cows belch, they produce methane (known as \\\"enteric fermentation\\\"). Other sources include decomposing cow manure, as well as methane from rice cultivation.\\n\\n-- Another\\u00a018 percent came from landfills. When food and other trash decays in a landfill, the organisms that feed on that trash emit methane into the atmosphere.\\n\\nThe Obama administration\\u00a0has been working on steps to cut methane in these areas, too. Back in March, the EPA announced it would come up with standards to reduce methane from all future landfills. It will then solicit public comments on whether to regulate landfills that have already been built.\\n\\nAs for cow burps, however, the administration is relying on purely voluntary measures for now. In June 2014, the EPA unveiled a \\\"partnership\\\" with the dairy industry to speed up the adoption of methane digesters that turn cow dung into energy. The hope is to reduce methane emissions from the dairy sector 25 percent by 2020.\\n\\nFurther reading: Obama has promised to cut US emissions 17% by 2020. Is that still possible?\"\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"label\",\n      \"properties\": {\n        \"dtype\": \"category\",\n        \"num_unique_values\": 2,\n        \"samples\": [\n          \"REAL\",\n          \"FAKE\"\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    }\n  ]\n}"
+              "variable_name": "data",
+              "summary": "{\n  \"name\": \"data\",\n  \"rows\": 6335,\n  \"fields\": [\n    {\n      \"column\": \"Unnamed: 0\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 3038,\n        \"min\": 2,\n        \"max\": 10557,\n        \"num_unique_values\": 6335,\n        \"samples\": [\n          9957,\n          7596,\n          8905\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"title\",\n      \"properties\": {\n        \"dtype\": \"string\",\n        \"num_unique_values\": 6256,\n        \"samples\": [\n          \"Elizabeth Warren's speech attacking Donald Trump made a bigger argument about Republicans\",\n          \"Assange: Clinton And ISIS Are Funded By Same People, \\u201cTrump Not Permitted To Win\\u201d\",\n          \"Reporters Stunned to Learn Trump Fans Lining Up 12 Hours Before Rally Starts\"\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"text\",\n      \"properties\": {\n        \"dtype\": \"string\",\n        \"num_unique_values\": 6060,\n        \"samples\": [\n          \"Republicans taking control of Congress this coming week will try to overcome their reputation as a divided party hobbled by infighting by working to reshape policy in ways that Americans will feel in corporate boardrooms, on factory floors and at the gas pump.\\n\\nIncoming committee chairmen are preparing fresh oversight of federal agencies while rank-and-file members will be encouraged to use a new budget plan and government spending bills to chip away at President Obama\\u2019s environmental regulations, health-care reform and outreach to Cuba and Iran.\\n\\nAfter years of sparring with the White House, Republicans are eager to demonstrate productivity and some level of bipartisan \\u00adcooperation with Obama and the Democrats. Public disgust with Washington gridlock remains high, and with the 2016 presidential campaign beginning in earnest, broader voter interest \\u2014 especially among independents and Democrats \\u2014 could put recent GOP gains at risk in less than two years.\\n\\n\\u201cOn the things where we agree, the goal will be to make a law, not just put something on [Obama\\u2019s] desk,\\u201d incoming Senate Majority Leader Mitch McConnell (R-Ky.) said in an interview, adding later: \\u201cI want to make it clear: Desire for a signature is not going to dictate everything that we do.\\u201d\\n\\nSecuring final passage of bills will require McConnell and House Speaker John A. Boehner (R-Ohio) to compromise with Democrats while holding together their own ranks, which have clashed repeatedly over issues such as spending and immigration. Many GOP leaders hope that their differences can be set aside in favor of legislative wins.\\n\\nThe House and Senate formally reconvene Tuesday. New members will be sworn in and top leaders and committee chairmen formally installed on a day steeped in tradition and ceremony.\\n\\nBoehner and McConnell will be backed by larger GOP majorities: 246 Republicans in the House \\u2014 the party\\u2019s largest majority since just after World War II \\u2014 and 54 GOP senators, an impressive gain but short of the 60 votes required to overcome most procedural hurdles that Democrats will have at their disposal.\\n\\nIn the Senate, the rebranding effort will begin with energy policy.\\n\\nMcConnell plans to start his tenure as Senate majority leader with a \\u201cfull-throated\\u201d debate on national energy policy, ranging from a new oil pipeline to additional oil exploration. He has also promised consideration of liberal alternatives.\\n\\nMcConnell wants to use the controversial proposal to authorize construction of the Keystone XL pipeline as the gen\\u00adesis for a free-wheeling Senate debate about the United States\\u2019 energy future, in which both sides will have the opportunity to offer and debate more expansive energy issues than the narrow pipeline proposal.\\n\\n\\u201cWe can treat this like a serious and significant energy debate,\\u201d McConnell said in an interview before Christmas in his Capitol office.\\n\\nObama has resisted GOP efforts to authorize the pipeline, but dozens of moderate congressional Democrats support the bill and a broader energy debate.\\n\\nOther Democrats are skeptical of McConnell\\u2019s plans.\\n\\n\\u201cThe $64,000 question as to whether the Congress can get anything done is which way the Republican leadership goes,\\u201d Sen. Charles E. Schumer (D-N.Y.) said in an interview Saturday. \\u201cIf they let the tea party pull them to the right into the path of negativity and obstruction, we\\u2019ll get nothing done.\\u201d\\n\\nSen. John Hoeven (R-N.D.), a lead author of the Keystone bill, said that Republicans plan to consider proposals allowing the export of liquefied natural gas; to give state governments greater power to oversee hydraulic fracturing; and to restrict the federal government\\u2019s role in the construction of cross-border gas pipelines.\\n\\n\\u201cI don\\u2019t think we have an energy bill that doesn\\u2019t have a Democratic co-sponsor on it,\\u201d he said. \\u201cBecause at the end of the day you\\u2019ve got to get at least 60 votes\\u201d to clear procedural hurdles.\\n\\nThe open process is part of McConnell\\u2019s effort to live up to his pledge to restore the Senate\\u2019s grand tradition of free and full debate, while also advancing conservative causes. A skilled practitioner in the use of the Senate\\u2019s arcane procedural rules to move or block legislation, McConnell has pledged to use those rules to score conservative wins. He has been coaching GOP senators that their most likely path to wins will come on the annual spending bills for the federal government \\u2014 which Republicans have routinely opposed on the grounds that they spend too much taxpayer money.\\n\\nOther party leaders echo those sentiments. \\u201cI think a majority [of Republicans] recognize that we have to govern responsibly,\\u201d said Sen. John McCain (R-Ariz.), who will become chairman of the Armed Services Committee. \\u201cWe have to show that we can be a productive party, and that, I think, will have a direct effect on whether we\\u2019re able to elect a Republican as president in 2016.\\u201d\\n\\nBut now, with control of the House and Senate, Republicans have more leeway to attach policy riders to spending bills that will restrict federal agencies in their oversight of environmental, labor and other regulations. These still may draw presidential vetoes, but McConnell believes that Republicans will have leverage to get some restrictions included, just as the mammoth spending measure approved last month included language sought by Wall Street firms making risky trades.\\n\\nIn the House, most of the early weeks will seem like a do-over of the past two years \\u2014 except that many of the bills passed will get swifter Senate consideration.\\n\\nUp first is a veterans employment bill that passed last year with bipartisan support, according to senior leadership aides. There is also a bill to loosen work requirements set by the Affordable Care Act and a similar bill to authorize the Keystone pipeline.\\n\\nThe second week of January will be devoted to a new spending plan for the Department of Homeland Security. The spending bill funds DHS only until the end of February, a move designed to give Republicans more time to craft a legislative response to Obama\\u2019s decision to change immigration policy through executive actions. But no specific proposals have emerged, the aides said.\\n\\nThen there are the investigations into alleged wrongdoing at agencies including the Internal Revenue Service, the Justice Department and the Environmental Protection Agency.\\n\\n\\u201cThere are issues that haven\\u2019t been resolved,\\u201d said Rep. Jason Chaffetz (R-Utah), the new chairman of the House Oversight and Government Reform Committee.\\n\\nHe is launching subcommittees to closely track Obama\\u2019s energy and environmental policies and created \\u201cadministrative rules,\\u201d a panel that will \\u201ctry to figure out what the administration is doing next with its rule-making authority. We\\u2019re going to jump on those as fast as we possibly can,\\u201d he said.\\n\\nBefore the work begins, Boehner is expected to face another leadership challenge. After he survived a close call two years ago, conservative blogs and radio shows are actively supporting another effort to unseat him.\\n\\nPresuming that the 434 currently seated House members show up to vote Tuesday and that all Democrats vote against him, at least 28 of the 246 Republicans also would need to vote against Boehner to deny him the gavel. (The 435th House seat is held by Rep. Michael G. Grimm (R-N.Y.), who plans to resign Monday after recently pleading guilty to tax evasion charges.)\\n\\nRep. Walter B. Jones (R-N.C.), who opposed Boehner two years ago, said in a recent radio interview that he\\u2019ll do it again, adding that at least 16 to 18 Republican members might vote against the speaker. Among them is Rep. Jim Bridenstine (R-Okla.), who said Friday that he will vote against the speaker because the spending bill passed last month didn\\u2019t fully strip DHS of its funding.\\n\\nRep. Tom Cole (R-Okla.), a Boehner ally, said in an interview that \\u201cI expect a few scattered \\u2018no\\u2019 votes. But because Boehner has been strengthened by the gains in the election, the speaker election should mostly be an uneventful coronation.\\u201d\\n\\nThe opening weeks of the new Congress are also expected to include the confirmation of Ashton Carter, Obama\\u2019s pick to lead the Pentagon, and Loretta Lynch to be the next attorney general. Concerns with Iran are also expected to be an early focus. The Obama administration persuaded Senate Democrats last year to hold off debating a bipartisan proposal authorizing stronger sanctions against the Iranian regime.\\n\\nBut Sen. Bob Corker (R-Tenn.), the incoming chairman of the Foreign Relations Committee, said, \\u201cMy guess is fairly early on in some form or fashion the Senate\\u2019s going to want to weigh in on Iran.\\u201d\\n\\nCorker also plans to launch \\u201ca rigorous hearing process\\u201d on Obama\\u2019s decision to restore diplomatic relations with Cuba. Republicans have threatened to block funding for a new embassy in Havana and confirmation of a new ambassador to Cuba. But Obama could veto spending bills that include such restrictions, sparking a showdown over whether the GOP is willing to shutter parts of the government over a new Cuba policy.\\n\\nIn 2016, Republicans will be defending at least 24 Senate seats and about a dozen first-term House members from swing districts around the country. Party leaders have a political imperative to govern and avoid short-term fights with Obama.\\n\\n\\u201cWe will see if there is an opportunity for a fourth quarter for President Obama that actually moves the country in the direction we\\u2019d like to go,\\u201d said Sen. Roger Wicker (R-Miss.), who also will be responsible for helping reelect GOP senators in 2016.\\n\\n\\u201cReagan did it a generation ago working with Democrats. Clinton did it almost two decades ago with welfare reform and deficit reduction,\\u201d he said. \\u201cSo it can be done \\u2014 if the president is disposed to move in that direction.\\u201d\",\n          \"Reps. Kevin McCarthy, R-California, Jason Chaffetz, R-Utah, and Daniel Webster, R-Florida, are the three candidates vying for the post, and the winner becomes the favorite to become second in line to succeed the President of the United States.\\n\\nBut Thursday's vote inside the House GOP conference is just the first step. The candidate who gets the Republican party's internal nod still has to be approved by the full House of Representatives on October 29. And that's where things can get tricky.\\n\\nIf the Republican nominee can't garner 218 votes on the House floor, then Boehner will remain the speaker. And the potential for multiple rounds of votes on the House floor could open up the election to other candidates beyond the three that are in the race now. It would also prolong the deeply divisive and public process for House Republicans, who are hoping to chart a new path forward and prove they can make the dysfunctional Capitol work.\\n\\nThe three candidates will make their pitch to GOP colleagues at a \\\"candidate forum\\\" on Thursday morning in a conference room in the basement of the Capitol. Each gets three minutes to make a speech before answering questions from members. At noon, the 247 members of the House Republican conference gather in the ornate Ways and Means Committee room to vote. Under the House GOP conference rules, the three candidates are not allowed to make their own speeches. Instead each can designate one supporter to make a three-minute address nominating them for the post. Then up to two additional supporters can speak for another minute each on the candidate's behalf. To win the GOP nomination, a candidate needs a simple majority of all House Republicans -- or 125 votes. (That number could change if any House Republicans are absent or opts not to vote in the election.) Boehner plans to vote for McCarthy before heading to New York to tape an appearance on \\\"The Tonight Show,\\\" according to a spokesman. The delegate from American Samoa, Amata Radewagen, who doesn't get a vote on the House floor, does get to cast a vote for speaker inside the conference meeting. RELATED: John Boehner to appear on 'The Tonight Show' Three members serve as \\\"tally clerks\\\" and collect the ballots and count how many votes each candidate receives. Once all the ballots are counted, a representative of the conference will announce the results, along with the vote totals. If no candidate gets a majority of the conference on the first vote, a second ballot circulates with the names of the top two vote-getters, and a winner is announced after those ballots are counted. The new speaker can't take the gavel from Boehner until the full House of Representatives votes. Unlike the private contest on Thursday, the floor vote is covered live by C-SPAN's television cameras inside the House chamber. Each member of Congress is called on in alphabetical order to stand and announce their choice for speaker. The winner must win the votes of a majority -- 218, if everyone in the House is present -- in order to win. The vast majority of House Democrats are expected for to vote for former Speaker and current Minority Leader Nancy Pelosi. House Republican conference rules require that GOP members support their party's nominee on the floor, but many conservatives have ignored that rule in recent elections. That's where any drama will occur. If the GOP nominee fails to get a majority, the contest on the House floor could go to multiple ballots. Boehner will remain the speaker until a majority of the House votes to elect a new candidate. The last time it took more than one ballot to elect a speaker was in 1923 when it took nine ballots over the course of three days. And you don't need to be in the House to get the job. The Constitution does not require that the speaker be someone currently serving in Congress, but all who have been elected to the post have been House members. Former Secretary of State Colin Powell, Sen. Rand Paul and Sen. Jeff Sessions received votes in the January 2015 election . And two years earlier, David Walker, the former head of the General Accounting Office, received one vote\",\n          \"Over the last six years, the Obama administration has been trying to address global warming\\u00a0with a flurry of rules aimed at reducing US carbon-dioxide emissions. First there were stricter fuel-economy standards for cars and trucks. More recently, the EPA\\u00a0proposed sweeping carbon regulations for coal-fired power plants (known as the \\\"Clean Power Plan\\\").\\n\\nThe overarching goal was to cut US greenhouse-gas emissions 17 percent below 2005 levels by 2020. That, the administration believed, would help advance global climate talks.\\n\\nBut all of Obama's moves so far\\u00a0have been insufficient to get to that 17 percent cut by 2020. As recent analyses from the Rhodium Group and the Clean Air Task Force\\u00a0have argued, the US also needs to reduce methane emissions dramatically to get there:\\n\\nCarbon-dioxide is the biggest greenhouse gas responsible for global warming. But it's not the only one. There's also\\u00a0methane.\\u00a0The US burns a lot of methane \\u2014 known as \\\"natural gas\\\" \\u2014 for energy. But when methane leaks out of oil and gas wells or pipelines and into the atmosphere, it acts as a potent greenhouse gas. (The White House says it's 25 times as effective at trapping heat as carbon dioxide. Other scientists say 34 times.)\\n\\nIn 2012, the EPA estimated that methane accounted for roughly\\u00a08.7 percent of US greenhouse-gas emissions (though this may be an\\u00a0underestimate). But experts have warned that methane leaks could be poised to grow in the coming years.\\n\\nThanks to the\\u00a0fracking boom, US energy companies have been extracting more and more natural gas from shale formations. On one level, that's good news for climate change: utilities are now burning more natural gas for electricity instead of coal, which means lower carbon-dioxide emissions from power plants.\\n\\nThe problem is that all this new drilling increases the risk of methane leaking into the air \\u2014 and those leaks\\u00a0are undermining the climate benefits of the gas boom.\\n\\nIn theory, it should be doable to plug these methane emissions,\\u00a0which can come from leaky pipelines or faulty drilling operations. Many companies already\\u00a0use infrared cameras to detect leaks and plug them. And they have financial incentives to do so \\u2014 after all, these companies would rather capture that methane and sell it for money than just have it float off into the air.\\n\\nMany oil and gas companies are already taking steps to detect and plug leaks\\n\\nStill, the White House wants to make sure these leaks really get plugged. So, on Wednesday, it\\u00a0announced a goal of cutting methane emissions from oil and gas operations 45 percent below 2012 levels by 2025.\\n\\nThis would be done through a combination of guidelines for voluntary actions by the industry and a hodgepodge of new regulations\\u00a0crafted by the EPA and other agencies. Some rules would focus on methane leaks from new oil and gas wells. Others would focus on pipelines used to transport the natural gas. The Interior Department is updating standards for drilling on public lands.\\n\\nThe White House noted that the oil and gas industry has already managed to cut methane emissions 16 percent since 1990 through voluntary measures. \\\"Nevertheless,\\\" it added, \\\"emissions from the oil and gas sector are projected to rise more than 25 percent by 2025 without additional steps to lower them.\\\"\\n\\nSome environmental groups said the White House's plan didn't go far enough. For example, the EPA is currently only working on rules to reduce emissions at new oil and gas wells \\u2014 and only much later will they work on rules for\\u00a0existing wells, which are by far the biggest source of emissions.\\n\\n\\\"While setting methane standards for the first time is an important step, failing to immediately regulate existing oil and gas equipment nationwide misses 90% of the methane pollution from the industry,\\\" Conrad Schneider of the Clean Air Task Force said in a statement.\\n\\nJayni Hein, policy director at the Institute for Policy Integrity at NYU School of Law, agreed: \\\"EPA's steps announced today would trim the sector's methane releases by about a third. We can and should go farther by regulating existing oil and natural gas sources.\\\"\\n\\nBy contrast, many oil and gas companies don't want new regulations at all \\u2014 they argue that the industry is already curbing methane leaks as is.\\u00a0\\\"Emissions will continue to fall as operators innovate and find new ways to capture and deliver more methane to consumers,\\\" said Jack Gerard, head of the American Petroleum Institute, in a statement. \\\"Existing EPA and state regulations are working. Another layer of burdensome requirements could actually slow down industry progress to reduce methane emissions.\\\"\\n\\nMeanwhile, it's worth noting that there are other sources of methane besides oil and gas. In 2012,\\u00a0according to the EPA, roughly 30 percent of methane in the United States came from natural-gas and petroleum operations (though, again, that may be an undercount).\\n\\nObama is relying on voluntary measures for methane in agriculture\\n\\n-- By contrast,\\u00a036 percent of US.methane emissions came from agriculture. The beef and dairy industry is a major contributor here: when cows belch, they produce methane (known as \\\"enteric fermentation\\\"). Other sources include decomposing cow manure, as well as methane from rice cultivation.\\n\\n-- Another\\u00a018 percent came from landfills. When food and other trash decays in a landfill, the organisms that feed on that trash emit methane into the atmosphere.\\n\\nThe Obama administration\\u00a0has been working on steps to cut methane in these areas, too. Back in March, the EPA announced it would come up with standards to reduce methane from all future landfills. It will then solicit public comments on whether to regulate landfills that have already been built.\\n\\nAs for cow burps, however, the administration is relying on purely voluntary measures for now. In June 2014, the EPA unveiled a \\\"partnership\\\" with the dairy industry to speed up the adoption of methane digesters that turn cow dung into energy. The hope is to reduce methane emissions from the dairy sector 25 percent by 2020.\\n\\nFurther reading: Obama has promised to cut US emissions 17% by 2020. Is that still possible?\"\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"label\",\n      \"properties\": {\n        \"dtype\": \"category\",\n        \"num_unique_values\": 2,\n        \"samples\": [\n          \"REAL\",\n          \"FAKE\"\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    }\n  ]\n}"
             }
           },
           "metadata": {},
-          "execution_count": 3
+          "execution_count": 42
         }
       ]
     },
     {
       "cell_type": "code",
       "source": [
-        "# вывожу размер ДФ\n",
-        "df.shape"
+        "x_train, x_test, y_train, y_test=train_test_split(data['text'], data.label, test_size=0.2, random_state=7)"
       ],
       "metadata": {
-        "colab": {
-          "base_uri": "https://localhost:8080/"
-        },
-        "id": "nlEqYcA9doXv",
-        "outputId": "c558e062-3b61-4613-db33-21f641a1eb4f"
-      },
-      "execution_count": 4,
-      "outputs": [
-        {
-          "output_type": "execute_result",
-          "data": {
-            "text/plain": [
-              "(6335, 3)"
-            ]
-          },
-          "metadata": {},
-          "execution_count": 4
-        }
-      ]
-    },
-    {
-      "cell_type": "code",
-      "source": [
-        "# удаляю заголовок\n",
-        "df = df.drop(['title'], axis = 1)"
-      ],
-      "metadata": {
-        "id": "ToaNrzI3fY4Z"
+        "id": "w_xY_SEb2Bxd"
       },
       "execution_count": null,
       "outputs": []
@@ -390,749 +370,32 @@
     {
       "cell_type": "code",
       "source": [
-        "df.head(3)"
+        "tfidf_vectorizer=TfidfVectorizer(stop_words='english', max_df=0.7)\n",
+        "tfidf_train=tfidf_vectorizer.fit_transform(x_train)\n",
+        "tfidf_test=tfidf_vectorizer.transform(x_test)\n",
+        "\n",
+        "pac=PassiveAggressiveClassifier(max_iter=50)\n",
+        "pac.fit(tfidf_train, y_train)\n",
+        "\n",
+        "y_pred=pac.predict(tfidf_test)\n",
+        "score=accuracy_score(y_test, y_pred)\n",
+        "\n",
+        "print(\"Точность: \", round(score*100, 1), '%')"
       ],
       "metadata": {
-        "colab": {
-          "base_uri": "https://localhost:8080/",
-          "height": 143
-        },
-        "id": "wwkOA8IFgMY4",
-        "outputId": "7f1f0f93-a521-4e08-b25d-f65d86cb9d27"
-      },
-      "execution_count": 5,
-      "outputs": [
-        {
-          "output_type": "execute_result",
-          "data": {
-            "text/plain": [
-              "                                                   title  \\\n",
-              "8476                        You Can Smell Hillary’s Fear   \n",
-              "10294  Watch The Exact Moment Paul Ryan Committed Pol...   \n",
-              "3608         Kerry to go to Paris in gesture of sympathy   \n",
-              "\n",
-              "                                                    text label  \n",
-              "8476   Daniel Greenfield, a Shillman Journalism Fello...  FAKE  \n",
-              "10294  Google Pinterest Digg Linkedin Reddit Stumbleu...  FAKE  \n",
-              "3608   U.S. Secretary of State John F. Kerry said Mon...  REAL  "
-            ],
-            "text/html": [
-              "\n",
-              "  <div id=\"df-a878c960-2a31-4b88-ab21-000258a1adea\" class=\"colab-df-container\">\n",
-              "    <div>\n",
-              "<style scoped>\n",
-              "    .dataframe tbody tr th:only-of-type {\n",
-              "        vertical-align: middle;\n",
-              "    }\n",
-              "\n",
-              "    .dataframe tbody tr th {\n",
-              "        vertical-align: top;\n",
-              "    }\n",
-              "\n",
-              "    .dataframe thead th {\n",
-              "        text-align: right;\n",
-              "    }\n",
-              "</style>\n",
-              "<table border=\"1\" class=\"dataframe\">\n",
-              "  <thead>\n",
-              "    <tr style=\"text-align: right;\">\n",
-              "      <th></th>\n",
-              "      <th>title</th>\n",
-              "      <th>text</th>\n",
-              "      <th>label</th>\n",
-              "    </tr>\n",
-              "  </thead>\n",
-              "  <tbody>\n",
-              "    <tr>\n",
-              "      <th>8476</th>\n",
-              "      <td>You Can Smell Hillary’s Fear</td>\n",
-              "      <td>Daniel Greenfield, a Shillman Journalism Fello...</td>\n",
-              "      <td>FAKE</td>\n",
-              "    </tr>\n",
-              "    <tr>\n",
-              "      <th>10294</th>\n",
-              "      <td>Watch The Exact Moment Paul Ryan Committed Pol...</td>\n",
-              "      <td>Google Pinterest Digg Linkedin Reddit Stumbleu...</td>\n",
-              "      <td>FAKE</td>\n",
-              "    </tr>\n",
-              "    <tr>\n",
-              "      <th>3608</th>\n",
-              "      <td>Kerry to go to Paris in gesture of sympathy</td>\n",
-              "      <td>U.S. Secretary of State John F. Kerry said Mon...</td>\n",
-              "      <td>REAL</td>\n",
-              "    </tr>\n",
-              "  </tbody>\n",
-              "</table>\n",
-              "</div>\n",
-              "    <div class=\"colab-df-buttons\">\n",
-              "\n",
-              "  <div class=\"colab-df-container\">\n",
-              "    <button class=\"colab-df-convert\" onclick=\"convertToInteractive('df-a878c960-2a31-4b88-ab21-000258a1adea')\"\n",
-              "            title=\"Convert this dataframe to an interactive table.\"\n",
-              "            style=\"display:none;\">\n",
-              "\n",
-              "  <svg xmlns=\"http://www.w3.org/2000/svg\" height=\"24px\" viewBox=\"0 -960 960 960\">\n",
-              "    <path d=\"M120-120v-720h720v720H120Zm60-500h600v-160H180v160Zm220 220h160v-160H400v160Zm0 220h160v-160H400v160ZM180-400h160v-160H180v160Zm440 0h160v-160H620v160ZM180-180h160v-160H180v160Zm440 0h160v-160H620v160Z\"/>\n",
-              "  </svg>\n",
-              "    </button>\n",
-              "\n",
-              "  <style>\n",
-              "    .colab-df-container {\n",
-              "      display:flex;\n",
-              "      gap: 12px;\n",
-              "    }\n",
-              "\n",
-              "    .colab-df-convert {\n",
-              "      background-color: #E8F0FE;\n",
-              "      border: none;\n",
-              "      border-radius: 50%;\n",
-              "      cursor: pointer;\n",
-              "      display: none;\n",
-              "      fill: #1967D2;\n",
-              "      height: 32px;\n",
-              "      padding: 0 0 0 0;\n",
-              "      width: 32px;\n",
-              "    }\n",
-              "\n",
-              "    .colab-df-convert:hover {\n",
-              "      background-color: #E2EBFA;\n",
-              "      box-shadow: 0px 1px 2px rgba(60, 64, 67, 0.3), 0px 1px 3px 1px rgba(60, 64, 67, 0.15);\n",
-              "      fill: #174EA6;\n",
-              "    }\n",
-              "\n",
-              "    .colab-df-buttons div {\n",
-              "      margin-bottom: 4px;\n",
-              "    }\n",
-              "\n",
-              "    [theme=dark] .colab-df-convert {\n",
-              "      background-color: #3B4455;\n",
-              "      fill: #D2E3FC;\n",
-              "    }\n",
-              "\n",
-              "    [theme=dark] .colab-df-convert:hover {\n",
-              "      background-color: #434B5C;\n",
-              "      box-shadow: 0px 1px 3px 1px rgba(0, 0, 0, 0.15);\n",
-              "      filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.3));\n",
-              "      fill: #FFFFFF;\n",
-              "    }\n",
-              "  </style>\n",
-              "\n",
-              "    <script>\n",
-              "      const buttonEl =\n",
-              "        document.querySelector('#df-a878c960-2a31-4b88-ab21-000258a1adea button.colab-df-convert');\n",
-              "      buttonEl.style.display =\n",
-              "        google.colab.kernel.accessAllowed ? 'block' : 'none';\n",
-              "\n",
-              "      async function convertToInteractive(key) {\n",
-              "        const element = document.querySelector('#df-a878c960-2a31-4b88-ab21-000258a1adea');\n",
-              "        const dataTable =\n",
-              "          await google.colab.kernel.invokeFunction('convertToInteractive',\n",
-              "                                                    [key], {});\n",
-              "        if (!dataTable) return;\n",
-              "\n",
-              "        const docLinkHtml = 'Like what you see? Visit the ' +\n",
-              "          '<a target=\"_blank\" href=https://colab.research.google.com/notebooks/data_table.ipynb>data table notebook</a>'\n",
-              "          + ' to learn more about interactive tables.';\n",
-              "        element.innerHTML = '';\n",
-              "        dataTable['output_type'] = 'display_data';\n",
-              "        await google.colab.output.renderOutput(dataTable, element);\n",
-              "        const docLink = document.createElement('div');\n",
-              "        docLink.innerHTML = docLinkHtml;\n",
-              "        element.appendChild(docLink);\n",
-              "      }\n",
-              "    </script>\n",
-              "  </div>\n",
-              "\n",
-              "\n",
-              "<div id=\"df-898b45c0-6d89-460c-b546-c81107c5e710\">\n",
-              "  <button class=\"colab-df-quickchart\" onclick=\"quickchart('df-898b45c0-6d89-460c-b546-c81107c5e710')\"\n",
-              "            title=\"Suggest charts\"\n",
-              "            style=\"display:none;\">\n",
-              "\n",
-              "<svg xmlns=\"http://www.w3.org/2000/svg\" height=\"24px\"viewBox=\"0 0 24 24\"\n",
-              "     width=\"24px\">\n",
-              "    <g>\n",
-              "        <path d=\"M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z\"/>\n",
-              "    </g>\n",
-              "</svg>\n",
-              "  </button>\n",
-              "\n",
-              "<style>\n",
-              "  .colab-df-quickchart {\n",
-              "      --bg-color: #E8F0FE;\n",
-              "      --fill-color: #1967D2;\n",
-              "      --hover-bg-color: #E2EBFA;\n",
-              "      --hover-fill-color: #174EA6;\n",
-              "      --disabled-fill-color: #AAA;\n",
-              "      --disabled-bg-color: #DDD;\n",
-              "  }\n",
-              "\n",
-              "  [theme=dark] .colab-df-quickchart {\n",
-              "      --bg-color: #3B4455;\n",
-              "      --fill-color: #D2E3FC;\n",
-              "      --hover-bg-color: #434B5C;\n",
-              "      --hover-fill-color: #FFFFFF;\n",
-              "      --disabled-bg-color: #3B4455;\n",
-              "      --disabled-fill-color: #666;\n",
-              "  }\n",
-              "\n",
-              "  .colab-df-quickchart {\n",
-              "    background-color: var(--bg-color);\n",
-              "    border: none;\n",
-              "    border-radius: 50%;\n",
-              "    cursor: pointer;\n",
-              "    display: none;\n",
-              "    fill: var(--fill-color);\n",
-              "    height: 32px;\n",
-              "    padding: 0;\n",
-              "    width: 32px;\n",
-              "  }\n",
-              "\n",
-              "  .colab-df-quickchart:hover {\n",
-              "    background-color: var(--hover-bg-color);\n",
-              "    box-shadow: 0 1px 2px rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);\n",
-              "    fill: var(--button-hover-fill-color);\n",
-              "  }\n",
-              "\n",
-              "  .colab-df-quickchart-complete:disabled,\n",
-              "  .colab-df-quickchart-complete:disabled:hover {\n",
-              "    background-color: var(--disabled-bg-color);\n",
-              "    fill: var(--disabled-fill-color);\n",
-              "    box-shadow: none;\n",
-              "  }\n",
-              "\n",
-              "  .colab-df-spinner {\n",
-              "    border: 2px solid var(--fill-color);\n",
-              "    border-color: transparent;\n",
-              "    border-bottom-color: var(--fill-color);\n",
-              "    animation:\n",
-              "      spin 1s steps(1) infinite;\n",
-              "  }\n",
-              "\n",
-              "  @keyframes spin {\n",
-              "    0% {\n",
-              "      border-color: transparent;\n",
-              "      border-bottom-color: var(--fill-color);\n",
-              "      border-left-color: var(--fill-color);\n",
-              "    }\n",
-              "    20% {\n",
-              "      border-color: transparent;\n",
-              "      border-left-color: var(--fill-color);\n",
-              "      border-top-color: var(--fill-color);\n",
-              "    }\n",
-              "    30% {\n",
-              "      border-color: transparent;\n",
-              "      border-left-color: var(--fill-color);\n",
-              "      border-top-color: var(--fill-color);\n",
-              "      border-right-color: var(--fill-color);\n",
-              "    }\n",
-              "    40% {\n",
-              "      border-color: transparent;\n",
-              "      border-right-color: var(--fill-color);\n",
-              "      border-top-color: var(--fill-color);\n",
-              "    }\n",
-              "    60% {\n",
-              "      border-color: transparent;\n",
-              "      border-right-color: var(--fill-color);\n",
-              "    }\n",
-              "    80% {\n",
-              "      border-color: transparent;\n",
-              "      border-right-color: var(--fill-color);\n",
-              "      border-bottom-color: var(--fill-color);\n",
-              "    }\n",
-              "    90% {\n",
-              "      border-color: transparent;\n",
-              "      border-bottom-color: var(--fill-color);\n",
-              "    }\n",
-              "  }\n",
-              "</style>\n",
-              "\n",
-              "  <script>\n",
-              "    async function quickchart(key) {\n",
-              "      const quickchartButtonEl =\n",
-              "        document.querySelector('#' + key + ' button');\n",
-              "      quickchartButtonEl.disabled = true;  // To prevent multiple clicks.\n",
-              "      quickchartButtonEl.classList.add('colab-df-spinner');\n",
-              "      try {\n",
-              "        const charts = await google.colab.kernel.invokeFunction(\n",
-              "            'suggestCharts', [key], {});\n",
-              "      } catch (error) {\n",
-              "        console.error('Error during call to suggestCharts:', error);\n",
-              "      }\n",
-              "      quickchartButtonEl.classList.remove('colab-df-spinner');\n",
-              "      quickchartButtonEl.classList.add('colab-df-quickchart-complete');\n",
-              "    }\n",
-              "    (() => {\n",
-              "      let quickchartButtonEl =\n",
-              "        document.querySelector('#df-898b45c0-6d89-460c-b546-c81107c5e710 button');\n",
-              "      quickchartButtonEl.style.display =\n",
-              "        google.colab.kernel.accessAllowed ? 'block' : 'none';\n",
-              "    })();\n",
-              "  </script>\n",
-              "</div>\n",
-              "    </div>\n",
-              "  </div>\n"
-            ],
-            "application/vnd.google.colaboratory.intrinsic+json": {
-              "type": "dataframe",
-              "variable_name": "df",
-              "summary": "{\n  \"name\": \"df\",\n  \"rows\": 6335,\n  \"fields\": [\n    {\n      \"column\": \"title\",\n      \"properties\": {\n        \"dtype\": \"string\",\n        \"num_unique_values\": 6256,\n        \"samples\": [\n          \"Elizabeth Warren's speech attacking Donald Trump made a bigger argument about Republicans\",\n          \"Assange: Clinton And ISIS Are Funded By Same People, \\u201cTrump Not Permitted To Win\\u201d\",\n          \"Reporters Stunned to Learn Trump Fans Lining Up 12 Hours Before Rally Starts\"\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"text\",\n      \"properties\": {\n        \"dtype\": \"string\",\n        \"num_unique_values\": 6060,\n        \"samples\": [\n          \"Republicans taking control of Congress this coming week will try to overcome their reputation as a divided party hobbled by infighting by working to reshape policy in ways that Americans will feel in corporate boardrooms, on factory floors and at the gas pump.\\n\\nIncoming committee chairmen are preparing fresh oversight of federal agencies while rank-and-file members will be encouraged to use a new budget plan and government spending bills to chip away at President Obama\\u2019s environmental regulations, health-care reform and outreach to Cuba and Iran.\\n\\nAfter years of sparring with the White House, Republicans are eager to demonstrate productivity and some level of bipartisan \\u00adcooperation with Obama and the Democrats. Public disgust with Washington gridlock remains high, and with the 2016 presidential campaign beginning in earnest, broader voter interest \\u2014 especially among independents and Democrats \\u2014 could put recent GOP gains at risk in less than two years.\\n\\n\\u201cOn the things where we agree, the goal will be to make a law, not just put something on [Obama\\u2019s] desk,\\u201d incoming Senate Majority Leader Mitch McConnell (R-Ky.) said in an interview, adding later: \\u201cI want to make it clear: Desire for a signature is not going to dictate everything that we do.\\u201d\\n\\nSecuring final passage of bills will require McConnell and House Speaker John A. Boehner (R-Ohio) to compromise with Democrats while holding together their own ranks, which have clashed repeatedly over issues such as spending and immigration. Many GOP leaders hope that their differences can be set aside in favor of legislative wins.\\n\\nThe House and Senate formally reconvene Tuesday. New members will be sworn in and top leaders and committee chairmen formally installed on a day steeped in tradition and ceremony.\\n\\nBoehner and McConnell will be backed by larger GOP majorities: 246 Republicans in the House \\u2014 the party\\u2019s largest majority since just after World War II \\u2014 and 54 GOP senators, an impressive gain but short of the 60 votes required to overcome most procedural hurdles that Democrats will have at their disposal.\\n\\nIn the Senate, the rebranding effort will begin with energy policy.\\n\\nMcConnell plans to start his tenure as Senate majority leader with a \\u201cfull-throated\\u201d debate on national energy policy, ranging from a new oil pipeline to additional oil exploration. He has also promised consideration of liberal alternatives.\\n\\nMcConnell wants to use the controversial proposal to authorize construction of the Keystone XL pipeline as the gen\\u00adesis for a free-wheeling Senate debate about the United States\\u2019 energy future, in which both sides will have the opportunity to offer and debate more expansive energy issues than the narrow pipeline proposal.\\n\\n\\u201cWe can treat this like a serious and significant energy debate,\\u201d McConnell said in an interview before Christmas in his Capitol office.\\n\\nObama has resisted GOP efforts to authorize the pipeline, but dozens of moderate congressional Democrats support the bill and a broader energy debate.\\n\\nOther Democrats are skeptical of McConnell\\u2019s plans.\\n\\n\\u201cThe $64,000 question as to whether the Congress can get anything done is which way the Republican leadership goes,\\u201d Sen. Charles E. Schumer (D-N.Y.) said in an interview Saturday. \\u201cIf they let the tea party pull them to the right into the path of negativity and obstruction, we\\u2019ll get nothing done.\\u201d\\n\\nSen. John Hoeven (R-N.D.), a lead author of the Keystone bill, said that Republicans plan to consider proposals allowing the export of liquefied natural gas; to give state governments greater power to oversee hydraulic fracturing; and to restrict the federal government\\u2019s role in the construction of cross-border gas pipelines.\\n\\n\\u201cI don\\u2019t think we have an energy bill that doesn\\u2019t have a Democratic co-sponsor on it,\\u201d he said. \\u201cBecause at the end of the day you\\u2019ve got to get at least 60 votes\\u201d to clear procedural hurdles.\\n\\nThe open process is part of McConnell\\u2019s effort to live up to his pledge to restore the Senate\\u2019s grand tradition of free and full debate, while also advancing conservative causes. A skilled practitioner in the use of the Senate\\u2019s arcane procedural rules to move or block legislation, McConnell has pledged to use those rules to score conservative wins. He has been coaching GOP senators that their most likely path to wins will come on the annual spending bills for the federal government \\u2014 which Republicans have routinely opposed on the grounds that they spend too much taxpayer money.\\n\\nOther party leaders echo those sentiments. \\u201cI think a majority [of Republicans] recognize that we have to govern responsibly,\\u201d said Sen. John McCain (R-Ariz.), who will become chairman of the Armed Services Committee. \\u201cWe have to show that we can be a productive party, and that, I think, will have a direct effect on whether we\\u2019re able to elect a Republican as president in 2016.\\u201d\\n\\nBut now, with control of the House and Senate, Republicans have more leeway to attach policy riders to spending bills that will restrict federal agencies in their oversight of environmental, labor and other regulations. These still may draw presidential vetoes, but McConnell believes that Republicans will have leverage to get some restrictions included, just as the mammoth spending measure approved last month included language sought by Wall Street firms making risky trades.\\n\\nIn the House, most of the early weeks will seem like a do-over of the past two years \\u2014 except that many of the bills passed will get swifter Senate consideration.\\n\\nUp first is a veterans employment bill that passed last year with bipartisan support, according to senior leadership aides. There is also a bill to loosen work requirements set by the Affordable Care Act and a similar bill to authorize the Keystone pipeline.\\n\\nThe second week of January will be devoted to a new spending plan for the Department of Homeland Security. The spending bill funds DHS only until the end of February, a move designed to give Republicans more time to craft a legislative response to Obama\\u2019s decision to change immigration policy through executive actions. But no specific proposals have emerged, the aides said.\\n\\nThen there are the investigations into alleged wrongdoing at agencies including the Internal Revenue Service, the Justice Department and the Environmental Protection Agency.\\n\\n\\u201cThere are issues that haven\\u2019t been resolved,\\u201d said Rep. Jason Chaffetz (R-Utah), the new chairman of the House Oversight and Government Reform Committee.\\n\\nHe is launching subcommittees to closely track Obama\\u2019s energy and environmental policies and created \\u201cadministrative rules,\\u201d a panel that will \\u201ctry to figure out what the administration is doing next with its rule-making authority. We\\u2019re going to jump on those as fast as we possibly can,\\u201d he said.\\n\\nBefore the work begins, Boehner is expected to face another leadership challenge. After he survived a close call two years ago, conservative blogs and radio shows are actively supporting another effort to unseat him.\\n\\nPresuming that the 434 currently seated House members show up to vote Tuesday and that all Democrats vote against him, at least 28 of the 246 Republicans also would need to vote against Boehner to deny him the gavel. (The 435th House seat is held by Rep. Michael G. Grimm (R-N.Y.), who plans to resign Monday after recently pleading guilty to tax evasion charges.)\\n\\nRep. Walter B. Jones (R-N.C.), who opposed Boehner two years ago, said in a recent radio interview that he\\u2019ll do it again, adding that at least 16 to 18 Republican members might vote against the speaker. Among them is Rep. Jim Bridenstine (R-Okla.), who said Friday that he will vote against the speaker because the spending bill passed last month didn\\u2019t fully strip DHS of its funding.\\n\\nRep. Tom Cole (R-Okla.), a Boehner ally, said in an interview that \\u201cI expect a few scattered \\u2018no\\u2019 votes. But because Boehner has been strengthened by the gains in the election, the speaker election should mostly be an uneventful coronation.\\u201d\\n\\nThe opening weeks of the new Congress are also expected to include the confirmation of Ashton Carter, Obama\\u2019s pick to lead the Pentagon, and Loretta Lynch to be the next attorney general. Concerns with Iran are also expected to be an early focus. The Obama administration persuaded Senate Democrats last year to hold off debating a bipartisan proposal authorizing stronger sanctions against the Iranian regime.\\n\\nBut Sen. Bob Corker (R-Tenn.), the incoming chairman of the Foreign Relations Committee, said, \\u201cMy guess is fairly early on in some form or fashion the Senate\\u2019s going to want to weigh in on Iran.\\u201d\\n\\nCorker also plans to launch \\u201ca rigorous hearing process\\u201d on Obama\\u2019s decision to restore diplomatic relations with Cuba. Republicans have threatened to block funding for a new embassy in Havana and confirmation of a new ambassador to Cuba. But Obama could veto spending bills that include such restrictions, sparking a showdown over whether the GOP is willing to shutter parts of the government over a new Cuba policy.\\n\\nIn 2016, Republicans will be defending at least 24 Senate seats and about a dozen first-term House members from swing districts around the country. Party leaders have a political imperative to govern and avoid short-term fights with Obama.\\n\\n\\u201cWe will see if there is an opportunity for a fourth quarter for President Obama that actually moves the country in the direction we\\u2019d like to go,\\u201d said Sen. Roger Wicker (R-Miss.), who also will be responsible for helping reelect GOP senators in 2016.\\n\\n\\u201cReagan did it a generation ago working with Democrats. Clinton did it almost two decades ago with welfare reform and deficit reduction,\\u201d he said. \\u201cSo it can be done \\u2014 if the president is disposed to move in that direction.\\u201d\",\n          \"Reps. Kevin McCarthy, R-California, Jason Chaffetz, R-Utah, and Daniel Webster, R-Florida, are the three candidates vying for the post, and the winner becomes the favorite to become second in line to succeed the President of the United States.\\n\\nBut Thursday's vote inside the House GOP conference is just the first step. The candidate who gets the Republican party's internal nod still has to be approved by the full House of Representatives on October 29. And that's where things can get tricky.\\n\\nIf the Republican nominee can't garner 218 votes on the House floor, then Boehner will remain the speaker. And the potential for multiple rounds of votes on the House floor could open up the election to other candidates beyond the three that are in the race now. It would also prolong the deeply divisive and public process for House Republicans, who are hoping to chart a new path forward and prove they can make the dysfunctional Capitol work.\\n\\nThe three candidates will make their pitch to GOP colleagues at a \\\"candidate forum\\\" on Thursday morning in a conference room in the basement of the Capitol. Each gets three minutes to make a speech before answering questions from members. At noon, the 247 members of the House Republican conference gather in the ornate Ways and Means Committee room to vote. Under the House GOP conference rules, the three candidates are not allowed to make their own speeches. Instead each can designate one supporter to make a three-minute address nominating them for the post. Then up to two additional supporters can speak for another minute each on the candidate's behalf. To win the GOP nomination, a candidate needs a simple majority of all House Republicans -- or 125 votes. (That number could change if any House Republicans are absent or opts not to vote in the election.) Boehner plans to vote for McCarthy before heading to New York to tape an appearance on \\\"The Tonight Show,\\\" according to a spokesman. The delegate from American Samoa, Amata Radewagen, who doesn't get a vote on the House floor, does get to cast a vote for speaker inside the conference meeting. RELATED: John Boehner to appear on 'The Tonight Show' Three members serve as \\\"tally clerks\\\" and collect the ballots and count how many votes each candidate receives. Once all the ballots are counted, a representative of the conference will announce the results, along with the vote totals. If no candidate gets a majority of the conference on the first vote, a second ballot circulates with the names of the top two vote-getters, and a winner is announced after those ballots are counted. The new speaker can't take the gavel from Boehner until the full House of Representatives votes. Unlike the private contest on Thursday, the floor vote is covered live by C-SPAN's television cameras inside the House chamber. Each member of Congress is called on in alphabetical order to stand and announce their choice for speaker. The winner must win the votes of a majority -- 218, if everyone in the House is present -- in order to win. The vast majority of House Democrats are expected for to vote for former Speaker and current Minority Leader Nancy Pelosi. House Republican conference rules require that GOP members support their party's nominee on the floor, but many conservatives have ignored that rule in recent elections. That's where any drama will occur. If the GOP nominee fails to get a majority, the contest on the House floor could go to multiple ballots. Boehner will remain the speaker until a majority of the House votes to elect a new candidate. The last time it took more than one ballot to elect a speaker was in 1923 when it took nine ballots over the course of three days. And you don't need to be in the House to get the job. The Constitution does not require that the speaker be someone currently serving in Congress, but all who have been elected to the post have been House members. Former Secretary of State Colin Powell, Sen. Rand Paul and Sen. Jeff Sessions received votes in the January 2015 election . And two years earlier, David Walker, the former head of the General Accounting Office, received one vote\",\n          \"Over the last six years, the Obama administration has been trying to address global warming\\u00a0with a flurry of rules aimed at reducing US carbon-dioxide emissions. First there were stricter fuel-economy standards for cars and trucks. More recently, the EPA\\u00a0proposed sweeping carbon regulations for coal-fired power plants (known as the \\\"Clean Power Plan\\\").\\n\\nThe overarching goal was to cut US greenhouse-gas emissions 17 percent below 2005 levels by 2020. That, the administration believed, would help advance global climate talks.\\n\\nBut all of Obama's moves so far\\u00a0have been insufficient to get to that 17 percent cut by 2020. As recent analyses from the Rhodium Group and the Clean Air Task Force\\u00a0have argued, the US also needs to reduce methane emissions dramatically to get there:\\n\\nCarbon-dioxide is the biggest greenhouse gas responsible for global warming. But it's not the only one. There's also\\u00a0methane.\\u00a0The US burns a lot of methane \\u2014 known as \\\"natural gas\\\" \\u2014 for energy. But when methane leaks out of oil and gas wells or pipelines and into the atmosphere, it acts as a potent greenhouse gas. (The White House says it's 25 times as effective at trapping heat as carbon dioxide. Other scientists say 34 times.)\\n\\nIn 2012, the EPA estimated that methane accounted for roughly\\u00a08.7 percent of US greenhouse-gas emissions (though this may be an\\u00a0underestimate). But experts have warned that methane leaks could be poised to grow in the coming years.\\n\\nThanks to the\\u00a0fracking boom, US energy companies have been extracting more and more natural gas from shale formations. On one level, that's good news for climate change: utilities are now burning more natural gas for electricity instead of coal, which means lower carbon-dioxide emissions from power plants.\\n\\nThe problem is that all this new drilling increases the risk of methane leaking into the air \\u2014 and those leaks\\u00a0are undermining the climate benefits of the gas boom.\\n\\nIn theory, it should be doable to plug these methane emissions,\\u00a0which can come from leaky pipelines or faulty drilling operations. Many companies already\\u00a0use infrared cameras to detect leaks and plug them. And they have financial incentives to do so \\u2014 after all, these companies would rather capture that methane and sell it for money than just have it float off into the air.\\n\\nMany oil and gas companies are already taking steps to detect and plug leaks\\n\\nStill, the White House wants to make sure these leaks really get plugged. So, on Wednesday, it\\u00a0announced a goal of cutting methane emissions from oil and gas operations 45 percent below 2012 levels by 2025.\\n\\nThis would be done through a combination of guidelines for voluntary actions by the industry and a hodgepodge of new regulations\\u00a0crafted by the EPA and other agencies. Some rules would focus on methane leaks from new oil and gas wells. Others would focus on pipelines used to transport the natural gas. The Interior Department is updating standards for drilling on public lands.\\n\\nThe White House noted that the oil and gas industry has already managed to cut methane emissions 16 percent since 1990 through voluntary measures. \\\"Nevertheless,\\\" it added, \\\"emissions from the oil and gas sector are projected to rise more than 25 percent by 2025 without additional steps to lower them.\\\"\\n\\nSome environmental groups said the White House's plan didn't go far enough. For example, the EPA is currently only working on rules to reduce emissions at new oil and gas wells \\u2014 and only much later will they work on rules for\\u00a0existing wells, which are by far the biggest source of emissions.\\n\\n\\\"While setting methane standards for the first time is an important step, failing to immediately regulate existing oil and gas equipment nationwide misses 90% of the methane pollution from the industry,\\\" Conrad Schneider of the Clean Air Task Force said in a statement.\\n\\nJayni Hein, policy director at the Institute for Policy Integrity at NYU School of Law, agreed: \\\"EPA's steps announced today would trim the sector's methane releases by about a third. We can and should go farther by regulating existing oil and natural gas sources.\\\"\\n\\nBy contrast, many oil and gas companies don't want new regulations at all \\u2014 they argue that the industry is already curbing methane leaks as is.\\u00a0\\\"Emissions will continue to fall as operators innovate and find new ways to capture and deliver more methane to consumers,\\\" said Jack Gerard, head of the American Petroleum Institute, in a statement. \\\"Existing EPA and state regulations are working. Another layer of burdensome requirements could actually slow down industry progress to reduce methane emissions.\\\"\\n\\nMeanwhile, it's worth noting that there are other sources of methane besides oil and gas. In 2012,\\u00a0according to the EPA, roughly 30 percent of methane in the United States came from natural-gas and petroleum operations (though, again, that may be an undercount).\\n\\nObama is relying on voluntary measures for methane in agriculture\\n\\n-- By contrast,\\u00a036 percent of US.methane emissions came from agriculture. The beef and dairy industry is a major contributor here: when cows belch, they produce methane (known as \\\"enteric fermentation\\\"). Other sources include decomposing cow manure, as well as methane from rice cultivation.\\n\\n-- Another\\u00a018 percent came from landfills. When food and other trash decays in a landfill, the organisms that feed on that trash emit methane into the atmosphere.\\n\\nThe Obama administration\\u00a0has been working on steps to cut methane in these areas, too. Back in March, the EPA announced it would come up with standards to reduce methane from all future landfills. It will then solicit public comments on whether to regulate landfills that have already been built.\\n\\nAs for cow burps, however, the administration is relying on purely voluntary measures for now. In June 2014, the EPA unveiled a \\\"partnership\\\" with the dairy industry to speed up the adoption of methane digesters that turn cow dung into energy. The hope is to reduce methane emissions from the dairy sector 25 percent by 2020.\\n\\nFurther reading: Obama has promised to cut US emissions 17% by 2020. Is that still possible?\"\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"label\",\n      \"properties\": {\n        \"dtype\": \"category\",\n        \"num_unique_values\": 2,\n        \"samples\": [\n          \"REAL\",\n          \"FAKE\"\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    }\n  ]\n}"
-            }
-          },
-          "metadata": {},
-          "execution_count": 5
-        }
-      ]
-    },
-    {
-      "cell_type": "code",
-      "source": [
-        "# проверяю наличие пустых записей\n",
-        "df.isnull().sum()"
-      ],
-      "metadata": {
-        "colab": {
-          "base_uri": "https://localhost:8080/",
-          "height": 178
-        },
-        "id": "BcabPqbfgeYf",
-        "outputId": "9481d1e2-7ae9-49c2-c388-c8503f2da99c"
-      },
-      "execution_count": 6,
-      "outputs": [
-        {
-          "output_type": "execute_result",
-          "data": {
-            "text/plain": [
-              "title    0\n",
-              "text     0\n",
-              "label    0\n",
-              "dtype: int64"
-            ],
-            "text/html": [
-              "<div>\n",
-              "<style scoped>\n",
-              "    .dataframe tbody tr th:only-of-type {\n",
-              "        vertical-align: middle;\n",
-              "    }\n",
-              "\n",
-              "    .dataframe tbody tr th {\n",
-              "        vertical-align: top;\n",
-              "    }\n",
-              "\n",
-              "    .dataframe thead th {\n",
-              "        text-align: right;\n",
-              "    }\n",
-              "</style>\n",
-              "<table border=\"1\" class=\"dataframe\">\n",
-              "  <thead>\n",
-              "    <tr style=\"text-align: right;\">\n",
-              "      <th></th>\n",
-              "      <th>0</th>\n",
-              "    </tr>\n",
-              "  </thead>\n",
-              "  <tbody>\n",
-              "    <tr>\n",
-              "      <th>title</th>\n",
-              "      <td>0</td>\n",
-              "    </tr>\n",
-              "    <tr>\n",
-              "      <th>text</th>\n",
-              "      <td>0</td>\n",
-              "    </tr>\n",
-              "    <tr>\n",
-              "      <th>label</th>\n",
-              "      <td>0</td>\n",
-              "    </tr>\n",
-              "  </tbody>\n",
-              "</table>\n",
-              "</div><br><label><b>dtype:</b> int64</label>"
-            ]
-          },
-          "metadata": {},
-          "execution_count": 6
-        }
-      ]
-    },
-    {
-      "cell_type": "code",
-      "source": [
-        "# меняю значения FACK и REAL на 0 и 1\n",
-        "df.loc[df['label'] == 'FAKE', 'label'] = 0\n",
-        "df.loc[df['label'] == 'REAL', 'label'] = 1"
-      ],
-      "metadata": {
-        "id": "SsAGGVyDm8xY"
-      },
-      "execution_count": 7,
-      "outputs": []
-    },
-    {
-      "cell_type": "code",
-      "source": [
-        "df.head(3)"
-      ],
-      "metadata": {
-        "colab": {
-          "base_uri": "https://localhost:8080/",
-          "height": 143
-        },
-        "id": "Mf_c5sTfnV1V",
-        "outputId": "ebfc32c6-e3a5-4e93-a7f2-71a4801ecc3a"
-      },
-      "execution_count": 8,
-      "outputs": [
-        {
-          "output_type": "execute_result",
-          "data": {
-            "text/plain": [
-              "                                                   title  \\\n",
-              "8476                        You Can Smell Hillary’s Fear   \n",
-              "10294  Watch The Exact Moment Paul Ryan Committed Pol...   \n",
-              "3608         Kerry to go to Paris in gesture of sympathy   \n",
-              "\n",
-              "                                                    text label  \n",
-              "8476   Daniel Greenfield, a Shillman Journalism Fello...     0  \n",
-              "10294  Google Pinterest Digg Linkedin Reddit Stumbleu...     0  \n",
-              "3608   U.S. Secretary of State John F. Kerry said Mon...     1  "
-            ],
-            "text/html": [
-              "\n",
-              "  <div id=\"df-acd7dffc-017f-4a8e-a964-eddf1f59b81d\" class=\"colab-df-container\">\n",
-              "    <div>\n",
-              "<style scoped>\n",
-              "    .dataframe tbody tr th:only-of-type {\n",
-              "        vertical-align: middle;\n",
-              "    }\n",
-              "\n",
-              "    .dataframe tbody tr th {\n",
-              "        vertical-align: top;\n",
-              "    }\n",
-              "\n",
-              "    .dataframe thead th {\n",
-              "        text-align: right;\n",
-              "    }\n",
-              "</style>\n",
-              "<table border=\"1\" class=\"dataframe\">\n",
-              "  <thead>\n",
-              "    <tr style=\"text-align: right;\">\n",
-              "      <th></th>\n",
-              "      <th>title</th>\n",
-              "      <th>text</th>\n",
-              "      <th>label</th>\n",
-              "    </tr>\n",
-              "  </thead>\n",
-              "  <tbody>\n",
-              "    <tr>\n",
-              "      <th>8476</th>\n",
-              "      <td>You Can Smell Hillary’s Fear</td>\n",
-              "      <td>Daniel Greenfield, a Shillman Journalism Fello...</td>\n",
-              "      <td>0</td>\n",
-              "    </tr>\n",
-              "    <tr>\n",
-              "      <th>10294</th>\n",
-              "      <td>Watch The Exact Moment Paul Ryan Committed Pol...</td>\n",
-              "      <td>Google Pinterest Digg Linkedin Reddit Stumbleu...</td>\n",
-              "      <td>0</td>\n",
-              "    </tr>\n",
-              "    <tr>\n",
-              "      <th>3608</th>\n",
-              "      <td>Kerry to go to Paris in gesture of sympathy</td>\n",
-              "      <td>U.S. Secretary of State John F. Kerry said Mon...</td>\n",
-              "      <td>1</td>\n",
-              "    </tr>\n",
-              "  </tbody>\n",
-              "</table>\n",
-              "</div>\n",
-              "    <div class=\"colab-df-buttons\">\n",
-              "\n",
-              "  <div class=\"colab-df-container\">\n",
-              "    <button class=\"colab-df-convert\" onclick=\"convertToInteractive('df-acd7dffc-017f-4a8e-a964-eddf1f59b81d')\"\n",
-              "            title=\"Convert this dataframe to an interactive table.\"\n",
-              "            style=\"display:none;\">\n",
-              "\n",
-              "  <svg xmlns=\"http://www.w3.org/2000/svg\" height=\"24px\" viewBox=\"0 -960 960 960\">\n",
-              "    <path d=\"M120-120v-720h720v720H120Zm60-500h600v-160H180v160Zm220 220h160v-160H400v160Zm0 220h160v-160H400v160ZM180-400h160v-160H180v160Zm440 0h160v-160H620v160ZM180-180h160v-160H180v160Zm440 0h160v-160H620v160Z\"/>\n",
-              "  </svg>\n",
-              "    </button>\n",
-              "\n",
-              "  <style>\n",
-              "    .colab-df-container {\n",
-              "      display:flex;\n",
-              "      gap: 12px;\n",
-              "    }\n",
-              "\n",
-              "    .colab-df-convert {\n",
-              "      background-color: #E8F0FE;\n",
-              "      border: none;\n",
-              "      border-radius: 50%;\n",
-              "      cursor: pointer;\n",
-              "      display: none;\n",
-              "      fill: #1967D2;\n",
-              "      height: 32px;\n",
-              "      padding: 0 0 0 0;\n",
-              "      width: 32px;\n",
-              "    }\n",
-              "\n",
-              "    .colab-df-convert:hover {\n",
-              "      background-color: #E2EBFA;\n",
-              "      box-shadow: 0px 1px 2px rgba(60, 64, 67, 0.3), 0px 1px 3px 1px rgba(60, 64, 67, 0.15);\n",
-              "      fill: #174EA6;\n",
-              "    }\n",
-              "\n",
-              "    .colab-df-buttons div {\n",
-              "      margin-bottom: 4px;\n",
-              "    }\n",
-              "\n",
-              "    [theme=dark] .colab-df-convert {\n",
-              "      background-color: #3B4455;\n",
-              "      fill: #D2E3FC;\n",
-              "    }\n",
-              "\n",
-              "    [theme=dark] .colab-df-convert:hover {\n",
-              "      background-color: #434B5C;\n",
-              "      box-shadow: 0px 1px 3px 1px rgba(0, 0, 0, 0.15);\n",
-              "      filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.3));\n",
-              "      fill: #FFFFFF;\n",
-              "    }\n",
-              "  </style>\n",
-              "\n",
-              "    <script>\n",
-              "      const buttonEl =\n",
-              "        document.querySelector('#df-acd7dffc-017f-4a8e-a964-eddf1f59b81d button.colab-df-convert');\n",
-              "      buttonEl.style.display =\n",
-              "        google.colab.kernel.accessAllowed ? 'block' : 'none';\n",
-              "\n",
-              "      async function convertToInteractive(key) {\n",
-              "        const element = document.querySelector('#df-acd7dffc-017f-4a8e-a964-eddf1f59b81d');\n",
-              "        const dataTable =\n",
-              "          await google.colab.kernel.invokeFunction('convertToInteractive',\n",
-              "                                                    [key], {});\n",
-              "        if (!dataTable) return;\n",
-              "\n",
-              "        const docLinkHtml = 'Like what you see? Visit the ' +\n",
-              "          '<a target=\"_blank\" href=https://colab.research.google.com/notebooks/data_table.ipynb>data table notebook</a>'\n",
-              "          + ' to learn more about interactive tables.';\n",
-              "        element.innerHTML = '';\n",
-              "        dataTable['output_type'] = 'display_data';\n",
-              "        await google.colab.output.renderOutput(dataTable, element);\n",
-              "        const docLink = document.createElement('div');\n",
-              "        docLink.innerHTML = docLinkHtml;\n",
-              "        element.appendChild(docLink);\n",
-              "      }\n",
-              "    </script>\n",
-              "  </div>\n",
-              "\n",
-              "\n",
-              "<div id=\"df-a08525b9-25c1-482c-bc5f-fdfab23be0b0\">\n",
-              "  <button class=\"colab-df-quickchart\" onclick=\"quickchart('df-a08525b9-25c1-482c-bc5f-fdfab23be0b0')\"\n",
-              "            title=\"Suggest charts\"\n",
-              "            style=\"display:none;\">\n",
-              "\n",
-              "<svg xmlns=\"http://www.w3.org/2000/svg\" height=\"24px\"viewBox=\"0 0 24 24\"\n",
-              "     width=\"24px\">\n",
-              "    <g>\n",
-              "        <path d=\"M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z\"/>\n",
-              "    </g>\n",
-              "</svg>\n",
-              "  </button>\n",
-              "\n",
-              "<style>\n",
-              "  .colab-df-quickchart {\n",
-              "      --bg-color: #E8F0FE;\n",
-              "      --fill-color: #1967D2;\n",
-              "      --hover-bg-color: #E2EBFA;\n",
-              "      --hover-fill-color: #174EA6;\n",
-              "      --disabled-fill-color: #AAA;\n",
-              "      --disabled-bg-color: #DDD;\n",
-              "  }\n",
-              "\n",
-              "  [theme=dark] .colab-df-quickchart {\n",
-              "      --bg-color: #3B4455;\n",
-              "      --fill-color: #D2E3FC;\n",
-              "      --hover-bg-color: #434B5C;\n",
-              "      --hover-fill-color: #FFFFFF;\n",
-              "      --disabled-bg-color: #3B4455;\n",
-              "      --disabled-fill-color: #666;\n",
-              "  }\n",
-              "\n",
-              "  .colab-df-quickchart {\n",
-              "    background-color: var(--bg-color);\n",
-              "    border: none;\n",
-              "    border-radius: 50%;\n",
-              "    cursor: pointer;\n",
-              "    display: none;\n",
-              "    fill: var(--fill-color);\n",
-              "    height: 32px;\n",
-              "    padding: 0;\n",
-              "    width: 32px;\n",
-              "  }\n",
-              "\n",
-              "  .colab-df-quickchart:hover {\n",
-              "    background-color: var(--hover-bg-color);\n",
-              "    box-shadow: 0 1px 2px rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);\n",
-              "    fill: var(--button-hover-fill-color);\n",
-              "  }\n",
-              "\n",
-              "  .colab-df-quickchart-complete:disabled,\n",
-              "  .colab-df-quickchart-complete:disabled:hover {\n",
-              "    background-color: var(--disabled-bg-color);\n",
-              "    fill: var(--disabled-fill-color);\n",
-              "    box-shadow: none;\n",
-              "  }\n",
-              "\n",
-              "  .colab-df-spinner {\n",
-              "    border: 2px solid var(--fill-color);\n",
-              "    border-color: transparent;\n",
-              "    border-bottom-color: var(--fill-color);\n",
-              "    animation:\n",
-              "      spin 1s steps(1) infinite;\n",
-              "  }\n",
-              "\n",
-              "  @keyframes spin {\n",
-              "    0% {\n",
-              "      border-color: transparent;\n",
-              "      border-bottom-color: var(--fill-color);\n",
-              "      border-left-color: var(--fill-color);\n",
-              "    }\n",
-              "    20% {\n",
-              "      border-color: transparent;\n",
-              "      border-left-color: var(--fill-color);\n",
-              "      border-top-color: var(--fill-color);\n",
-              "    }\n",
-              "    30% {\n",
-              "      border-color: transparent;\n",
-              "      border-left-color: var(--fill-color);\n",
-              "      border-top-color: var(--fill-color);\n",
-              "      border-right-color: var(--fill-color);\n",
-              "    }\n",
-              "    40% {\n",
-              "      border-color: transparent;\n",
-              "      border-right-color: var(--fill-color);\n",
-              "      border-top-color: var(--fill-color);\n",
-              "    }\n",
-              "    60% {\n",
-              "      border-color: transparent;\n",
-              "      border-right-color: var(--fill-color);\n",
-              "    }\n",
-              "    80% {\n",
-              "      border-color: transparent;\n",
-              "      border-right-color: var(--fill-color);\n",
-              "      border-bottom-color: var(--fill-color);\n",
-              "    }\n",
-              "    90% {\n",
-              "      border-color: transparent;\n",
-              "      border-bottom-color: var(--fill-color);\n",
-              "    }\n",
-              "  }\n",
-              "</style>\n",
-              "\n",
-              "  <script>\n",
-              "    async function quickchart(key) {\n",
-              "      const quickchartButtonEl =\n",
-              "        document.querySelector('#' + key + ' button');\n",
-              "      quickchartButtonEl.disabled = true;  // To prevent multiple clicks.\n",
-              "      quickchartButtonEl.classList.add('colab-df-spinner');\n",
-              "      try {\n",
-              "        const charts = await google.colab.kernel.invokeFunction(\n",
-              "            'suggestCharts', [key], {});\n",
-              "      } catch (error) {\n",
-              "        console.error('Error during call to suggestCharts:', error);\n",
-              "      }\n",
-              "      quickchartButtonEl.classList.remove('colab-df-spinner');\n",
-              "      quickchartButtonEl.classList.add('colab-df-quickchart-complete');\n",
-              "    }\n",
-              "    (() => {\n",
-              "      let quickchartButtonEl =\n",
-              "        document.querySelector('#df-a08525b9-25c1-482c-bc5f-fdfab23be0b0 button');\n",
-              "      quickchartButtonEl.style.display =\n",
-              "        google.colab.kernel.accessAllowed ? 'block' : 'none';\n",
-              "    })();\n",
-              "  </script>\n",
-              "</div>\n",
-              "    </div>\n",
-              "  </div>\n"
-            ],
-            "application/vnd.google.colaboratory.intrinsic+json": {
-              "type": "dataframe",
-              "variable_name": "df",
-              "repr_error": "0"
-            }
-          },
-          "metadata": {},
-          "execution_count": 8
-        }
-      ]
-    },
-    {
-      "cell_type": "code",
-      "source": [
-        "# вывод уникальных значений\n",
-        "sns.countplot(data=df, x='label', order=df['label'].value_counts().index)"
-      ],
-      "metadata": {
-        "colab": {
-          "base_uri": "https://localhost:8080/",
-          "height": 467
-        },
-        "id": "mPm4FrFRi0qP",
-        "outputId": "5c2f1257-75e3-4a01-963f-809c8d36d406"
-      },
-      "execution_count": 9,
-      "outputs": [
-        {
-          "output_type": "execute_result",
-          "data": {
-            "text/plain": [
-              "<Axes: xlabel='label', ylabel='count'>"
-            ]
-          },
-          "metadata": {},
-          "execution_count": 9
-        },
-        {
-          "output_type": "display_data",
-          "data": {
-            "text/plain": [
-              "<Figure size 640x480 with 1 Axes>"
-            ],
-            "image/png": "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\n"
-          },
-          "metadata": {}
-        }
-      ]
-    },
-    {
-      "cell_type": "code",
-      "source": [
-        "# импорты для предварительной обработки\n",
-        "from tqdm import tqdm\n",
-        "import re\n",
-        "import nltk\n",
-        "nltk.download('punkt')\n",
-        "nltk.download('stopwords')\n",
-        "from nltk.corpus import stopwords\n",
-        "from nltk.tokenize import word_tokenize\n",
-        "from nltk.stem.porter import PorterStemmer\n",
-        "from wordcloud import WordCloud"
-      ],
-      "metadata": {
+        "id": "gKLt79YD2w0e",
         "colab": {
           "base_uri": "https://localhost:8080/"
         },
-        "id": "sSnPqEaSmNdh",
-        "outputId": "bec24999-5449-415e-f335-82d72ec08f8a"
+        "outputId": "f609d1f7-ef02-4415-f350-0d0ce651ac60"
       },
-      "execution_count": 10,
+      "execution_count": null,
       "outputs": [
         {
           "output_type": "stream",
-          "name": "stderr",
+          "name": "stdout",
           "text": [
-            "[nltk_data] Downloading package punkt to /root/nltk_data...\n",
-            "[nltk_data]   Unzipping tokenizers/punkt.zip.\n",
-            "[nltk_data] Downloading package stopwords to /root/nltk_data...\n",
-            "[nltk_data]   Unzipping corpora/stopwords.zip.\n"
+            "Точность:  92.9 %\n"
           ]
         }
       ]
@@ -1140,183 +403,50 @@
     {
       "cell_type": "code",
       "source": [
-        "# функция предварительной обработки\n",
-        "def preprocess_text(text_data):\n",
-        "    preprocessed_text = []\n",
+        "import sklearn.metrics as sk_metrics\n",
         "\n",
-        "    for sentence in tqdm(text_data):\n",
-        "        sentence = re.sub(r'[^\\w\\s]', '', sentence)\n",
-        "        preprocessed_text.append(' '.join(token.lower() for token in str(sentence).split() if token not in stopwords.words('english')))"
-      ],
-      "metadata": {
-        "id": "UgCMl97xnNVs"
-      },
-      "execution_count": 11,
-      "outputs": []
-    },
-    {
-      "cell_type": "code",
-      "source": [
-        "preprocessed_review = preprocess_text(df['text'].values)\n",
-        "df['text'] = preprocessed_review"
-      ],
-      "metadata": {
-        "colab": {
-          "base_uri": "https://localhost:8080/"
-        },
-        "id": "ZdMoKS44ohEM",
-        "outputId": "8f31d632-779f-42c9-af9e-2563bc0394fe"
-      },
-      "execution_count": 12,
-      "outputs": [
-        {
-          "output_type": "stream",
-          "name": "stderr",
-          "text": [
-            "100%|██████████| 6335/6335 [12:18<00:00,  8.58it/s]\n"
-          ]
-        }
-      ]
-    },
-    {
-      "cell_type": "code",
-      "source": [
-        "# визуализация REAL\n",
-        "consolidated = ' '.join(word for word in df['text'][df['class'] == 1].astype(str))\n",
-        "wordCloud = WordCloud(width=1600,\n",
-        "                      height=800,\n",
-        "                      random_state=21,\n",
-        "                      max_font_size=110,\n",
-        "                      collocations=False)\n",
-        "plt.figure(figsize=(15, 10))\n",
-        "plt.imshow(wordCloud.generate(consolidated), interpolation='bilinear')\n",
-        "plt.axis('off')\n",
-        "plt.show()\n"
+        "# plt.figure(figsize=(10,10))\n",
+        "confusion = sk_metrics.confusion_matrix(y_test, y_pred)\n",
+        "confusion_normalized = confusion / confusion.sum(axis=1, keepdims=True)\n",
+        "axis_labels = range(2)\n",
+        "ax = sns.heatmap(confusion_normalized, xticklabels=axis_labels, yticklabels=axis_labels, cmap='Blues', annot=True, fmt='.4f', square=True)\n",
+        "plt.title(\"Матрица ошибок\")\n",
+        "plt.ylabel(\"Истинные метки\")\n",
+        "plt.xlabel(\"Предсказанные метки\")\n",
+        "\n",
+        "show_confusion_matrix(y_test, y_pred)"
       ],
       "metadata": {
         "colab": {
           "base_uri": "https://localhost:8080/",
-          "height": 578
+          "height": 764
         },
-        "id": "6CGIoNVbpANJ",
-        "outputId": "18771e6f-f301-460b-b618-db5bda46f569"
+        "id": "pBs_6T9twBKG",
+        "outputId": "cd295e22-42f1-40ef-db39-2d2fbdde35e7"
       },
-      "execution_count": 23,
-      "outputs": [
-        {
-          "output_type": "error",
-          "ename": "KeyError",
-          "evalue": "'class'",
-          "traceback": [
-            "\u001b[0;31m---------------------------------------------------------------------------\u001b[0m",
-            "\u001b[0;31mKeyError\u001b[0m                                  Traceback (most recent call last)",
-            "\u001b[0;32m/usr/local/lib/python3.10/dist-packages/pandas/core/indexes/base.py\u001b[0m in \u001b[0;36mget_loc\u001b[0;34m(self, key)\u001b[0m\n\u001b[1;32m   3790\u001b[0m         \u001b[0;32mtry\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m-> 3791\u001b[0;31m             \u001b[0;32mreturn\u001b[0m \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0m_engine\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mget_loc\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mcasted_key\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m   3792\u001b[0m         \u001b[0;32mexcept\u001b[0m \u001b[0mKeyError\u001b[0m \u001b[0;32mas\u001b[0m \u001b[0merr\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
-            "\u001b[0;32mindex.pyx\u001b[0m in \u001b[0;36mpandas._libs.index.IndexEngine.get_loc\u001b[0;34m()\u001b[0m\n",
-            "\u001b[0;32mindex.pyx\u001b[0m in \u001b[0;36mpandas._libs.index.IndexEngine.get_loc\u001b[0;34m()\u001b[0m\n",
-            "\u001b[0;32mpandas/_libs/hashtable_class_helper.pxi\u001b[0m in \u001b[0;36mpandas._libs.hashtable.PyObjectHashTable.get_item\u001b[0;34m()\u001b[0m\n",
-            "\u001b[0;32mpandas/_libs/hashtable_class_helper.pxi\u001b[0m in \u001b[0;36mpandas._libs.hashtable.PyObjectHashTable.get_item\u001b[0;34m()\u001b[0m\n",
-            "\u001b[0;31mKeyError\u001b[0m: 'class'",
-            "\nThe above exception was the direct cause of the following exception:\n",
-            "\u001b[0;31mKeyError\u001b[0m                                  Traceback (most recent call last)",
-            "\u001b[0;32m<ipython-input-23-ed6a977c07e6>\u001b[0m in \u001b[0;36m<cell line: 2>\u001b[0;34m()\u001b[0m\n\u001b[1;32m      1\u001b[0m \u001b[0;31m# визуализация REAL\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m----> 2\u001b[0;31m \u001b[0mconsolidated\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0;34m' '\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mjoin\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mword\u001b[0m \u001b[0;32mfor\u001b[0m \u001b[0mword\u001b[0m \u001b[0;32min\u001b[0m \u001b[0mdf\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0;34m'text'\u001b[0m\u001b[0;34m]\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0mdf\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0;34m'class'\u001b[0m\u001b[0;34m]\u001b[0m \u001b[0;34m==\u001b[0m \u001b[0;36m1\u001b[0m\u001b[0;34m]\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mastype\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mstr\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m      3\u001b[0m wordCloud = WordCloud(width=1600, \n\u001b[1;32m      4\u001b[0m                       \u001b[0mheight\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;36m800\u001b[0m\u001b[0;34m,\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m      5\u001b[0m                       \u001b[0mrandom_state\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;36m21\u001b[0m\u001b[0;34m,\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
-            "\u001b[0;32m/usr/local/lib/python3.10/dist-packages/pandas/core/frame.py\u001b[0m in \u001b[0;36m__getitem__\u001b[0;34m(self, key)\u001b[0m\n\u001b[1;32m   3891\u001b[0m             \u001b[0;32mif\u001b[0m \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mcolumns\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mnlevels\u001b[0m \u001b[0;34m>\u001b[0m \u001b[0;36m1\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   3892\u001b[0m                 \u001b[0;32mreturn\u001b[0m \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0m_getitem_multilevel\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mkey\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m-> 3893\u001b[0;31m             \u001b[0mindexer\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mcolumns\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mget_loc\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mkey\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m   3894\u001b[0m             \u001b[0;32mif\u001b[0m \u001b[0mis_integer\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mindexer\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   3895\u001b[0m                 \u001b[0mindexer\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0;34m[\u001b[0m\u001b[0mindexer\u001b[0m\u001b[0;34m]\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
-            "\u001b[0;32m/usr/local/lib/python3.10/dist-packages/pandas/core/indexes/base.py\u001b[0m in \u001b[0;36mget_loc\u001b[0;34m(self, key)\u001b[0m\n\u001b[1;32m   3796\u001b[0m             ):\n\u001b[1;32m   3797\u001b[0m                 \u001b[0;32mraise\u001b[0m \u001b[0mInvalidIndexError\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mkey\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m-> 3798\u001b[0;31m             \u001b[0;32mraise\u001b[0m \u001b[0mKeyError\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mkey\u001b[0m\u001b[0;34m)\u001b[0m \u001b[0;32mfrom\u001b[0m \u001b[0merr\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m   3799\u001b[0m         \u001b[0;32mexcept\u001b[0m \u001b[0mTypeError\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   3800\u001b[0m             \u001b[0;31m# If we have a listlike key, _check_indexing_error will raise\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
-            "\u001b[0;31mKeyError\u001b[0m: 'class'"
-          ]
-        }
-      ]
-    },
-    {
-      "cell_type": "code",
-      "source": [
-        "# визуализация FAKE\n",
-        "consolidated = ' '.join(\n",
-        "    word for word in df['text'][df['label'] == 0].astype(str))\n",
-        "wordCloud = WordCloud(width = 1600,\n",
-        "                      height = 600,\n",
-        "                      random_state = 21,\n",
-        "                      max_font_size = 110,\n",
-        "                      collocations = False)\n",
-        "plt.figure(figsize = (15, 10))\n",
-        "plt.imshow(wordCloud.generate(consolidated), interpolation = 'bilinear')\n",
-        "plt.axis('off')\n",
-        "plt.show()"
-      ],
-      "metadata": {
-        "colab": {
-          "base_uri": "https://localhost:8080/",
-          "height": 472
-        },
-        "id": "3REmHiASvTkh",
-        "outputId": "04637694-0c20-45dc-aac8-c4c87e7adc68"
-      },
-      "execution_count": 21,
-      "outputs": [
-        {
-          "output_type": "display_data",
-          "data": {
-            "text/plain": [
-              "<Figure size 1500x1000 with 1 Axes>"
-            ],
-            "image/png": "iVBORw0KGgoAAAANSUhEUgAABJ4AAAHHCAYAAAD+qpJyAAAAOXRFWHRTb2Z0d2FyZQBNYXRwbG90bGliIHZlcnNpb24zLjcuMSwgaHR0cHM6Ly9tYXRwbG90bGliLm9yZy/bCgiHAAAACXBIWXMAAA9hAAAPYQGoP6dpAAAnyElEQVR4nO3d15dd553n5+8+sTIyQBJBTGBOIhUpUlJLI8+03fZ4etTWzIXtsVff2Pf+P3zhtJYvxrOW7R5P2zPj7p7u9kitnKhEiUkkmEWAAblyOGH7oiiKQJ0iAVS9ACQ9z1rSWjy7cPZbdS5Y+PB9f7uq67oOAAAAAGyzxrVeAAAAAAC/m4QnAAAAAIoQngAAAAAoQngCAAAAoAjhCQAAAIAihCcAAAAAihCeAAAAAChCeAIAAACgiNalfmFVVSXXAQAAAMBvkbquP/Rr7HgCAAAAoAjhCQAAAIAihCcAAAAAihCeAAAAAChCeAIAAACgCOEJAAAAgCKEJwAAAACKEJ4AAAAAKEJ4AgAAAKAI4QkAAACAIoQnAAAAAIoQngAAAAAoQngCAAAAoAjhCQAAAIAihCcAAAAAihCeAAAAAChCeAIAAACgCOEJAAAAgCKEJwAAAACKEJ4AAAAAKEJ4AgAAAKAI4QkAAACAIoQnAAAAAIoQngAAAAAoQngCAAAAoAjhCQAAAIAihCcAAAAAihCeAAAAAChCeAIAAACgCOEJAAAAgCKEJwAAAACKEJ4AAAAAKEJ4AgAAAKAI4QkAAACAIoQnAAAAAIoQngAAAAAoQngCAAAAoAjhCQAAAIAihCcAAAAAihCeAAAAAChCeAIAAACgCOEJAAAAgCKEJwAAAACKEJ4AAAAAKEJ4AgAAAKAI4QkAAACAIoQnAAAAAIoQngAAAAAoQngCAAAAoAjhCQAAAIAihCcAAAAAihCeAAAAAChCeAIAAACgCOEJAAAAgCKEJwAAAACKEJ4AAAAAKEJ4AgAAAKAI4QkAAACAIoQnAAAAAIoQngAAAAAoQngCAAAAoAjhCQAAAIAihCcAAAAAihCeAAAAAChCeAIAAACgCOEJAAAAgCKEJwAAAACKEJ4AAAAAKEJ4AgAAAKAI4QkAAACAIoQnAAAAAIoQngAAAAAoQngCAAAAoAjhCQAAAIAihCcAAAAAihCeAAAAAChCeAIAAACgCOEJAAAAgCKEJwAAAACKEJ4AAAAAKEJ4AgAAAKAI4QkAAACAIoQnAAAAAIoQngAAAAAoQngCAAAAoAjhCQAAAIAihCcAAAAAihCeAAAAAChCeAIAAACgCOEJAAAAgCKEJwAAAACKEJ4AAAAAKEJ4AgAAAKAI4QkAAACAIoQnAAAAAIoQngAAAAAoQngCAAAAoAjhCQAAAIAihCcAAAAAihCeAAAAAChCeAIAAACgCOEJAAAAgCKEJwAAAACKEJ4AAAAAKEJ4AgAAAKAI4QkAAACAIoQnAAAAAIoQngAAAAAoQngCAAAAoAjhCQAAAIAihCcAAAAAihCeAAAAAChCeAIAAACgCOEJAAAAgCKEJwAAAACKEJ4AAAAAKEJ4AgAAAKAI4QkAAACAIoQnAAAAAIoQngAAAAAoQngCAAAAoAjhCQAAAIAihCcAAAAAihCeAAAAAChCeAIAAACgCOEJAAAAgCKEJwAAAACKEJ4AAAAAKEJ4AgAAAKAI4QkAAACAIoQnAAAAAIoQngAAAAAoQngCAAAAoAjhCQAAAIAihCcAAAAAihCeAAAAAChCeAIAAACgCOEJAAAAgCKEJwAAAACKEJ4AAAAAKEJ4AgAAAKAI4QkAAACAIoQnAAAAAIoQngAAAAAoQngCAAAAoAjhCQAAAIAihCcAAAAAihCeAAAAAChCeAIAAACgCOEJAAAAgCKEJwAAAACKEJ4AAAAAKEJ4AgAAAKAI4QkAAACAIoQnAAAAAIoQngAAAAAoQngCAAAAoAjhCQAAAIAihCcAAAAAihCeAAAAAChCeAIAAACgCOEJAAAAgCKEJwAAAACKEJ4AAAAAKEJ4AgAAAKAI4QkAAACAIoQnAAAAAIoQngAAAAAoQngCAAAAoAjhCQAAAIAihCcAAAAAihCeAAAAAChCeAIAAACgCOEJAAAAgCKEJwAAAACKEJ4AAAAAKEJ4AgAAAKAI4QkAAACAIoQnAAAAAIoQngAAAAAoQngCAAAAoAjhCQAAAIAihCcAAAAAihCeAAAAAChCeAIAAACgCOEJAAAAgCKEJwAAAACKEJ4AAAAAKEJ4AgAAAKAI4QkAAACAIoQnAAAAAIoQngAAAAAoQngCAAAAoAjhCQAAAIAihCcAAAAAihCeAAAAAChCeAIAAACgCOEJAAAAgCKEJwAAAACKEJ4AAAAAKEJ4AgAAAKAI4QkAAACAIoQn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\n"
-          },
-          "metadata": {}
-        }
-      ]
-    },
-    {
-      "cell_type": "code",
-      "source": [
-        "from sklearn.feature_extraction.text import CountVectorizer\n",
-        "\n",
-        "def get_top_n_words(corpus, n=None):\n",
-        "    vec = CountVectorizer().fit(corpus)\n",
-        "    bag_of_words = vec.transform(corpus)\n",
-        "    sum_words = bag_of_words.sum(axis=0)\n",
-        "    words_freq = [(word, sum_words[0, idx])\n",
-        "                  for word, idx in vec.vocabulary_.items()]\n",
-        "    words_freq = sorted(words_freq, key=lambda x: x[1],\n",
-        "                        reverse=True)\n",
-        "    return words_freq[:n]\n",
-        "\n",
-        "\n",
-        "common_words = get_top_n_words(df['text'], 20)\n",
-        "df1 = pd.DataFrame(common_words, columns=['Review', 'count'])\n",
-        "\n",
-        "df1.groupby('Review').sum()['count'].sort_values(ascending=False).plot(\n",
-        "    kind='bar',\n",
-        "    figsize=(10, 6),\n",
-        "    xlabel=\"Top Words\",\n",
-        "    ylabel=\"Count\",\n",
-        "    title=\"Bar Chart of Top Words Frequency\")\n"
-      ],
-      "metadata": {
-        "colab": {
-          "base_uri": "https://localhost:8080/",
-          "height": 375
-        },
-        "id": "x42VtNeYvnKO",
-        "outputId": "5d75695f-2722-4cff-fc60-acc51d7dbf80"
-      },
-      "execution_count": 19,
+      "execution_count": null,
       "outputs": [
         {
           "output_type": "error",
           "ename": "AttributeError",
-          "evalue": "'NoneType' object has no attribute 'lower'",
+          "evalue": "module 'matplotlib' has no attribute 'title'",
           "traceback": [
             "\u001b[0;31m---------------------------------------------------------------------------\u001b[0m",
             "\u001b[0;31mAttributeError\u001b[0m                            Traceback (most recent call last)",
-            "\u001b[0;32m<ipython-input-19-8d9255119eb0>\u001b[0m in \u001b[0;36m<cell line: 14>\u001b[0;34m()\u001b[0m\n\u001b[1;32m     12\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m     13\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m---> 14\u001b[0;31m \u001b[0mcommon_words\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mget_top_n_words\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mdf\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0;34m'text'\u001b[0m\u001b[0;34m]\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0;36m20\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m     15\u001b[0m \u001b[0mdf1\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mpd\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mDataFrame\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mcommon_words\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mcolumns\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0;34m'Review'\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0;34m'count'\u001b[0m\u001b[0;34m]\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m     16\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n",
-            "\u001b[0;32m<ipython-input-19-8d9255119eb0>\u001b[0m in \u001b[0;36mget_top_n_words\u001b[0;34m(corpus, n)\u001b[0m\n\u001b[1;32m      2\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m      3\u001b[0m \u001b[0;32mdef\u001b[0m \u001b[0mget_top_n_words\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mcorpus\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mn\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;32mNone\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m----> 4\u001b[0;31m     \u001b[0mvec\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mCountVectorizer\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mfit\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mcorpus\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m      5\u001b[0m     \u001b[0mbag_of_words\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mvec\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mtransform\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mcorpus\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m      6\u001b[0m     \u001b[0msum_words\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mbag_of_words\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0msum\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0maxis\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;36m0\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
-            "\u001b[0;32m/usr/local/lib/python3.10/dist-packages/sklearn/feature_extraction/text.py\u001b[0m in \u001b[0;36mfit\u001b[0;34m(self, raw_documents, y)\u001b[0m\n\u001b[1;32m   1338\u001b[0m             \u001b[0mFitted\u001b[0m \u001b[0mvectorizer\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1339\u001b[0m         \"\"\"\n\u001b[0;32m-> 1340\u001b[0;31m         \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mfit_transform\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mraw_documents\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m   1341\u001b[0m         \u001b[0;32mreturn\u001b[0m \u001b[0mself\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1342\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n",
-            "\u001b[0;32m/usr/local/lib/python3.10/dist-packages/sklearn/base.py\u001b[0m in \u001b[0;36mwrapper\u001b[0;34m(estimator, *args, **kwargs)\u001b[0m\n\u001b[1;32m   1150\u001b[0m                 )\n\u001b[1;32m   1151\u001b[0m             ):\n\u001b[0;32m-> 1152\u001b[0;31m                 \u001b[0;32mreturn\u001b[0m \u001b[0mfit_method\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mestimator\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0;34m*\u001b[0m\u001b[0margs\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0;34m**\u001b[0m\u001b[0mkwargs\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m   1153\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1154\u001b[0m         \u001b[0;32mreturn\u001b[0m \u001b[0mwrapper\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
-            "\u001b[0;32m/usr/local/lib/python3.10/dist-packages/sklearn/feature_extraction/text.py\u001b[0m in \u001b[0;36mfit_transform\u001b[0;34m(self, raw_documents, y)\u001b[0m\n\u001b[1;32m   1387\u001b[0m                     \u001b[0;32mbreak\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1388\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m-> 1389\u001b[0;31m         \u001b[0mvocabulary\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mX\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0m_count_vocab\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mraw_documents\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mfixed_vocabulary_\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m   1390\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1391\u001b[0m         \u001b[0;32mif\u001b[0m \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mbinary\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
-            "\u001b[0;32m/usr/local/lib/python3.10/dist-packages/sklearn/feature_extraction/text.py\u001b[0m in \u001b[0;36m_count_vocab\u001b[0;34m(self, raw_documents, fixed_vocab)\u001b[0m\n\u001b[1;32m   1274\u001b[0m         \u001b[0;32mfor\u001b[0m \u001b[0mdoc\u001b[0m \u001b[0;32min\u001b[0m \u001b[0mraw_documents\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1275\u001b[0m             \u001b[0mfeature_counter\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0;34m{\u001b[0m\u001b[0;34m}\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m-> 1276\u001b[0;31m             \u001b[0;32mfor\u001b[0m \u001b[0mfeature\u001b[0m \u001b[0;32min\u001b[0m \u001b[0manalyze\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mdoc\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m   1277\u001b[0m                 \u001b[0;32mtry\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1278\u001b[0m                     \u001b[0mfeature_idx\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mvocabulary\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0mfeature\u001b[0m\u001b[0;34m]\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
-            "\u001b[0;32m/usr/local/lib/python3.10/dist-packages/sklearn/feature_extraction/text.py\u001b[0m in \u001b[0;36m_analyze\u001b[0;34m(doc, analyzer, tokenizer, ngrams, preprocessor, decoder, stop_words)\u001b[0m\n\u001b[1;32m    108\u001b[0m     \u001b[0;32melse\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    109\u001b[0m         \u001b[0;32mif\u001b[0m \u001b[0mpreprocessor\u001b[0m \u001b[0;32mis\u001b[0m \u001b[0;32mnot\u001b[0m \u001b[0;32mNone\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m--> 110\u001b[0;31m             \u001b[0mdoc\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mpreprocessor\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mdoc\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m    111\u001b[0m         \u001b[0;32mif\u001b[0m \u001b[0mtokenizer\u001b[0m \u001b[0;32mis\u001b[0m \u001b[0;32mnot\u001b[0m \u001b[0;32mNone\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    112\u001b[0m             \u001b[0mdoc\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mtokenizer\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mdoc\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
-            "\u001b[0;32m/usr/local/lib/python3.10/dist-packages/sklearn/feature_extraction/text.py\u001b[0m in \u001b[0;36m_preprocess\u001b[0;34m(doc, accent_function, lower)\u001b[0m\n\u001b[1;32m     66\u001b[0m     \"\"\"\n\u001b[1;32m     67\u001b[0m     \u001b[0;32mif\u001b[0m \u001b[0mlower\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m---> 68\u001b[0;31m         \u001b[0mdoc\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mdoc\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mlower\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m     69\u001b[0m     \u001b[0;32mif\u001b[0m \u001b[0maccent_function\u001b[0m \u001b[0;32mis\u001b[0m \u001b[0;32mnot\u001b[0m \u001b[0;32mNone\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m     70\u001b[0m         \u001b[0mdoc\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0maccent_function\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mdoc\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
-            "\u001b[0;31mAttributeError\u001b[0m: 'NoneType' object has no attribute 'lower'"
+            "\u001b[0;32m<ipython-input-45-4dc9215ee329>\u001b[0m in \u001b[0;36m<cell line: 8>\u001b[0;34m()\u001b[0m\n\u001b[1;32m      6\u001b[0m \u001b[0maxis_labels\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mrange\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;36m2\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m      7\u001b[0m \u001b[0max\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0msns\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mheatmap\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mconfusion_normalized\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mxticklabels\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0maxis_labels\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0myticklabels\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0maxis_labels\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mcmap\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;34m'Blues'\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mannot\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;32mTrue\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mfmt\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;34m'.4f'\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0msquare\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;32mTrue\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m----> 8\u001b[0;31m \u001b[0mplt\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mtitle\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m\"Матрица ошибок\"\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m      9\u001b[0m \u001b[0mplt\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mylabel\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m\"Истинные метки\"\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m     10\u001b[0m \u001b[0mplt\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mxlabel\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m\"Предсказанные метки\"\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+            "\u001b[0;32m/usr/local/lib/python3.10/dist-packages/matplotlib/_api/__init__.py\u001b[0m in \u001b[0;36m__getattr__\u001b[0;34m(name)\u001b[0m\n\u001b[1;32m    224\u001b[0m         \u001b[0;32mif\u001b[0m \u001b[0mname\u001b[0m \u001b[0;32min\u001b[0m \u001b[0mprops\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    225\u001b[0m             \u001b[0;32mreturn\u001b[0m \u001b[0mprops\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0mname\u001b[0m\u001b[0;34m]\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0m__get__\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0minstance\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m--> 226\u001b[0;31m         raise AttributeError(\n\u001b[0m\u001b[1;32m    227\u001b[0m             f\"module {cls.__module__!r} has no attribute {name!r}\")\n\u001b[1;32m    228\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n",
+            "\u001b[0;31mAttributeError\u001b[0m: module 'matplotlib' has no attribute 'title'"
           ]
+        },
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/plain": [
+              "<Figure size 640x480 with 2 Axes>"
+            ],
+            "image/png": "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\n"
+          },
+          "metadata": {}
         }
       ]
     }
